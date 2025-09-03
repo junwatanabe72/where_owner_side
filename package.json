@@ -1,7 +1,7 @@
 {
-  "name": "mockapp-run",
+  "name": "where_owner_side",
   "version": "0.1.0",
-  "homepage": "https://junwatanabe72.github.io/mockapp-run",
+  "homepage": "https://junwatanabe72.github.io/where_owner_side",
   "private": true,
   "dependencies": {
     "@emotion/react": "^11.14.0",
