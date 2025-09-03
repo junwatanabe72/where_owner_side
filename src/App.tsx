@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { PrivacyLevel } from './types';
-import useAssetStore from './store/assetStore';
+import { useAssetManagement } from './hooks';
 import TopNav from './components/layout/TopNav';
 import { AssetView } from './components/features/assets';
 import AssetDetail from './components/AssetDetail';
@@ -11,23 +10,22 @@ export default function App() {
     assets,
     proposals,
     registryAlerts,
-    setSelectedAssetId,
     selectedAssetId,
-  } = useAssetStore();
+    privacyLevel,
+    setPrivacyLevel,
+    showAssetDetail,
+    handleAssetSelect,
+    handleBackFromDetail,
+  } = useAssetManagement();
 
-  const [privacyLevel, setPrivacyLevel] = useState<PrivacyLevel>('限定公開');
   const [showSettings, setShowSettings] = useState(false);
-  const [showAssetDetail, setShowAssetDetail] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   if (showAssetDetail && selectedAssetId !== null) {
     return (
       <AssetDetail
         assetId={selectedAssetId}
-        onBack={() => {
-          setShowAssetDetail(false);
-          setSelectedAssetId(null);
-        }}
+        onBack={handleBackFromDetail}
         privacyLevel={privacyLevel}
       />
     );
@@ -48,10 +46,7 @@ export default function App() {
           proposals={proposals}
           alerts={registryAlerts}
           privacyLevel={privacyLevel}
-          onAssetClick={(assetId: number) => {
-            setSelectedAssetId(assetId);
-            setShowAssetDetail(true);
-          }}
+          onAssetClick={handleAssetSelect}
           isSidebarOpen={isSidebarOpen}
           setIsSidebarOpen={setIsSidebarOpen}
         />

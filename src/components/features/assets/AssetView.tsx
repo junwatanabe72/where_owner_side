@@ -1,8 +1,9 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { X, Info } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Asset, Proposal, RegistryAlert, PrivacyLevel, MapLayers } from '../../../types';
-import { convertAssetsToLandProperties, getDefaultMapLayers } from '../../../utils';
+import { Asset, Proposal, RegistryAlert, PrivacyLevel } from '../../../types';
+import { convertAssetsToLandProperties } from '../../../utils';
+import { useInfoTip, useMapLayers } from '../../../hooks';
 import AssetListSidebar from '../../layout/AssetListSidebar';
 import { MapView } from '../map';
 import PropertySlideOver from './PropertySlideOver';
@@ -28,9 +29,9 @@ const AssetView: React.FC<AssetViewProps> = ({
 }) => {
   const [selected, setSelected] = useState<number | null>(null);
   const [openDetail, setOpenDetail] = useState(false);
-  const [showInfoTip, setShowInfoTip] = useState(false);
-  const [tipAlert, setTipAlert] = useState<RegistryAlert | null>(alerts?.[0] ?? null);
-  const [mapLayers, setMapLayers] = useState<MapLayers>(getDefaultMapLayers(privacyLevel));
+  
+  const { showInfoTip, setShowInfoTip, tipAlert } = useInfoTip(alerts, selected);
+  const { mapLayers, setMapLayers } = useMapLayers(privacyLevel);
 
   const selectedAsset = useMemo(
     () => assets.find((a) => a.id === selected) || null,
@@ -45,31 +46,6 @@ const AssetView: React.FC<AssetViewProps> = ({
     () => convertAssetsToLandProperties(assets),
     [assets]
   );
-
-  useEffect(() => {
-    setMapLayers(getDefaultMapLayers(privacyLevel));
-  }, [privacyLevel]);
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      const visible = Math.random() < 0.5;
-      setShowInfoTip(visible);
-      if (visible && alerts?.length) {
-        setTipAlert(alerts[Math.floor(Math.random() * alerts.length)]);
-      }
-    }, 6000);
-    return () => clearInterval(id);
-  }, [alerts]);
-
-  useEffect(() => {
-    if (selected !== null) {
-      const visible = Math.random() < 0.7;
-      setShowInfoTip(visible);
-      if (visible && alerts?.length) {
-        setTipAlert(alerts[Math.floor(Math.random() * alerts.length)]);
-      }
-    }
-  }, [selected, alerts]);
 
   const handleAssetClick = (assetId: number) => {
     setSelected(assetId);

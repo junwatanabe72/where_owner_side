@@ -20,7 +20,6 @@ import Map from "../map";
 import "mapbox-gl/dist/mapbox-gl.css";
 import useAssetStore from "../store/assetStore";
 import LayerToggle from "./atoms/LayerToggle";
-import ProposalDetailView from "./ProposalDetailView";
 
 interface AssetDetailProps {
   assetId: number;
