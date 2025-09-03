@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/where_owner_side/static/css/main.ccc49ef7.css",
+    "main.js": "/where_owner_side/static/js/main.d1b874bd.js",
+    "index.html": "/where_owner_side/index.html",
+    "main.ccc49ef7.css.map": "/where_owner_side/static/css/main.ccc49ef7.css.map",
+    "main.d1b874bd.js.map": "/where_owner_side/static/js/main.d1b874bd.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.ccc49ef7.css",
+    "static/js/main.d1b874bd.js"
+  ]
+}
