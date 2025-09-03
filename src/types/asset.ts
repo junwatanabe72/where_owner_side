@@ -11,9 +11,10 @@ export interface Asset {
 }
 
 export interface RegistryAlert {
-  id: number;
+  id: string | number;
   parcel: string;
   change: string;
   date: string;
-  alertLevel: 'low' | 'medium' | 'high';
+  alertLevel?: 'low' | 'medium' | 'high';
+  note?: string;
 }

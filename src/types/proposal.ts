@@ -1,7 +1,7 @@
 export type ProposalKind = 'sale' | 'lease' | 'exchange' | 'groundlease' | 'other';
 
 export interface Proposal {
-  id: number;
+  id: string | number;
   kind: ProposalKind;
   company: string;
   created_at: string;
