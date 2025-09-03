@@ -1,6 +1,7 @@
 {
   "name": "mockapp-run",
   "version": "0.1.0",
+  "homepage": "https://junwatanabe72.github.io/mockapp-run",
   "private": true,
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -34,7 +35,9 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build"
   },
   "eslintConfig": {
     "extends": [
@@ -55,6 +58,7 @@
     ]
   },
   "devDependencies": {
-    "@types/mapbox-gl": "^3.4.1"
+    "@types/mapbox-gl": "^3.4.1",
+    "gh-pages": "^6.3.0"
   }
 }
