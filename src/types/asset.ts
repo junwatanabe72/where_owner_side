@@ -13,6 +13,10 @@ export interface Asset {
   status: string;
   memo: string;
   valuationMedian?: number;
+  name?: string;
+  valuationMin?: number;
+  valuationMax?: number;
+  pricePerSqm?: number;
 }
 
 export interface RegistryAlert {
