@@ -1,36 +1,31 @@
 import React, { useState, useMemo } from 'react';
-import { X, Info } from 'lucide-react';
+import { X, Map, List, Building2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Asset, Proposal, RegistryAlert, PrivacyLevel } from '../../../types';
-import { convertAssetsToLandProperties } from '../../../utils';
-import { useInfoTip, useMapLayers } from '../../../hooks';
-import AssetListSidebar from '../../layout/AssetListSidebar';
+import { Asset, Proposal, PrivacyLevel } from '../../../types';
+import { convertAssetsToLandProperties, formatCurrency } from '../../../utils';
+import { useMapLayers } from '../../../hooks';
 import { MapView } from '../map';
 import PropertySlideOver from './PropertySlideOver';
+import AssetListView from './AssetListView';
 
 interface AssetViewProps {
   assets: Asset[];
   proposals: Proposal[];
-  alerts: RegistryAlert[];
   privacyLevel: PrivacyLevel;
   onAssetClick: (assetId: number) => void;
-  isSidebarOpen: boolean;
-  setIsSidebarOpen: (open: boolean) => void;
 }
 
 const AssetView: React.FC<AssetViewProps> = ({
   assets,
   proposals,
-  alerts,
   privacyLevel,
   onAssetClick,
-  isSidebarOpen,
-  setIsSidebarOpen,
 }) => {
   const [selected, setSelected] = useState<number | null>(null);
   const [openDetail, setOpenDetail] = useState(false);
-  
-  const { showInfoTip, setShowInfoTip, tipAlert } = useInfoTip(alerts, selected);
+  const [viewMode, setViewMode] = useState<'map' | 'list'>('list');
+  const [showAssetSidebar, setShowAssetSidebar] = useState(false);
+
   const { mapLayers, setMapLayers } = useMapLayers(privacyLevel);
 
   const selectedAsset = useMemo(
@@ -54,86 +49,142 @@ const AssetView: React.FC<AssetViewProps> = ({
 
   return (
     <div className="relative">
-      <AnimatePresence>
-        {isSidebarOpen && (
-          <motion.div
-            className="fixed inset-0 z-30 lg:hidden"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <div
-              className="absolute inset-0 bg-black/30"
-              onClick={() => setIsSidebarOpen(false)}
-            />
-            <motion.div
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="absolute left-0 top-0 h-full w-full max-w-sm bg-transparent p-4"
-            >
-              <AssetListSidebar
-                assets={assets}
-                selected={selected}
-                onAssetClick={handleAssetClick}
-                totalValuation={totalValuation}
-                setIsSidebarOpen={setIsSidebarOpen}
-              />
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <div className="max-w-[1600px] mx-auto mt-3">
 
-      <div className="max-w-[1600px] mx-auto grid grid-cols-12 gap-3 mt-3">
-        <div className="hidden lg:block col-span-12 lg:col-span-4 xl:col-span-3">
-          <AssetListSidebar
-            assets={assets}
-            selected={selected}
-            onAssetClick={handleAssetClick}
-            totalValuation={totalValuation}
-          />
-        </div>
-
-        <div className="col-span-12 lg:col-span-8 xl:col-span-9 bg-white rounded-2xl shadow overflow-hidden relative">
-          <MapView
-            landProperties={landProperties}
-            privacyLevel={privacyLevel}
-            mapLayers={mapLayers}
-            setMapLayers={setMapLayers}
-          />
-          
-          <AnimatePresence>
-            {showInfoTip && tipAlert && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="absolute top-12 right-4 bg-white/95 shadow-lg border rounded-xl p-2 pr-8 text-xs max-w-xs z-20"
+        <div className="w-full">
+          <div className="mb-3 flex justify-end">
+            <div className="inline-flex rounded-lg bg-white shadow-sm p-1">
+              <button
+                onClick={() => setViewMode('map')}
+                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'map'
+                    ? 'bg-slate-900 text-white'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
               >
-                <button
-                  className="absolute top-1.5 right-1.5 p-1 rounded hover:bg-slate-100"
-                  onClick={() => setShowInfoTip(false)}
-                >
-                  <X className="w-4 h-4" />
-                </button>
-                <div className="flex items-start gap-2">
-                  <Info className="w-4 h-4 text-sky-600" />
-                  <div>
-                    <div className="text-sky-700 font-medium">
-                      隣地 登記変更を検出
-                    </div>
-                    <div className="mt-0.5">
-                      {tipAlert.parcel ?? '（サンプル）堺市中区…'}
-                    </div>
-                    <div className="text-slate-500">
-                      {tipAlert.change ?? '所有者変更'} / {tipAlert.date ?? '2025-09-01'}
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                <Map className="w-4 h-4" />
+                マップビュー
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'list'
+                    ? 'bg-slate-900 text-white'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <List className="w-4 h-4" />
+                リストビュー
+              </button>
+            </div>
+          </div>
+
+          {viewMode === 'map' ? (
+            <div className="bg-white rounded-2xl shadow overflow-hidden relative">
+              <MapView
+                landProperties={landProperties}
+                privacyLevel={privacyLevel}
+                mapLayers={mapLayers}
+                setMapLayers={setMapLayers}
+              />
+
+              {/* Floating Action Button */}
+              <button
+                onClick={() => setShowAssetSidebar(!showAssetSidebar)}
+                className="absolute bottom-6 right-6 bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-6 py-3 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 z-20 flex items-center gap-2 font-semibold"
+              >
+                <Building2 className="w-5 h-5" />
+                物件一覧
+              </button>
+
+              {/* Asset List Sidebar */}
+              <AnimatePresence>
+                {showAssetSidebar && (
+                  <>
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="fixed inset-0 bg-black/30 z-30"
+                      onClick={() => setShowAssetSidebar(false)}
+                    />
+                    <motion.div
+                      initial={{ x: '100%' }}
+                      animate={{ x: 0 }}
+                      exit={{ x: '100%' }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                      className="fixed right-0 top-0 h-full w-full max-w-md bg-white shadow-xl z-40"
+                    >
+                      <div className="h-full flex flex-col">
+                        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                          <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                            <Building2 className="w-5 h-5" />
+                            所有不動産一覧
+                          </h2>
+                          <button
+                            onClick={() => setShowAssetSidebar(false)}
+                            className="p-2 rounded-lg hover:bg-slate-100"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto">
+                          {assets.map((asset) => (
+                            <div
+                              key={asset.id}
+                              onClick={() => {
+                                handleAssetClick(asset.id);
+                                setShowAssetSidebar(false);
+                              }}
+                              className="px-6 py-4 border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors"
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="font-medium text-slate-900">
+                                    物件 {asset.id}
+                                  </div>
+                                  <div className="text-sm text-slate-600 mt-1">
+                                    {asset.address}
+                                  </div>
+                                  <div className="flex items-center gap-4 mt-2 text-sm">
+                                    <span className="text-slate-500">
+                                      面積: {asset.area.toLocaleString('ja-JP')}㎡
+                                    </span>
+                                    <span className="text-slate-500">
+                                      状態: {asset.status === 'owned' ? '所有中' : asset.status === 'rental' ? '賃貸中' : '空き'}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="text-right ml-4">
+                                  <div className="text-sm font-medium text-slate-900">
+                                    {asset.valuationMedian ? formatCurrency(asset.valuationMedian) : '-'}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="px-6 py-3 border-t border-slate-200 bg-slate-50">
+                          <div className="flex items-center justify-between text-sm text-slate-600">
+                            <div>全 {assets.length} 件</div>
+                            <div>
+                              合計評価額: {formatCurrency(totalValuation)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+          ) : (
+            <AssetListView
+              proposals={proposals}
+              privacyLevel={privacyLevel}
+              onAssetClick={handleAssetClick}
+            />
+          )}
         </div>
 
         <PropertySlideOver

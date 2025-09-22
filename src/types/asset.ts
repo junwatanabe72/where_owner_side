@@ -1,4 +1,9 @@
 export interface Asset {
+  /**
+   * Indicates whether the asset is publicly visible.
+   * true → 公開, false → 非公開. Optional; defaults to public when omitted.
+   */
+  isPublic?: boolean;
   id: number;
   address: string;
   lat: number;
@@ -15,6 +20,6 @@ export interface RegistryAlert {
   parcel: string;
   change: string;
   date: string;
-  alertLevel?: 'low' | 'medium' | 'high';
+  alertLevel?: "low" | "medium" | "high";
   note?: string;
 }

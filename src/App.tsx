@@ -19,7 +19,6 @@ export default function App() {
   } = useAssetManagement();
 
   const [showSettings, setShowSettings] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   if (showAssetDetail && selectedAssetId !== null) {
     return (
@@ -38,17 +37,14 @@ export default function App() {
         setPrivacyLevel={setPrivacyLevel}
         showSettings={showSettings}
         setShowSettings={setShowSettings}
-        onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
+        onMenuClick={() => {}}
       />
       <div className="px-2 md:px-4 lg:px-6 pb-3">
         <AssetView
           assets={assets}
           proposals={proposals}
-          alerts={registryAlerts}
           privacyLevel={privacyLevel}
           onAssetClick={handleAssetSelect}
-          isSidebarOpen={isSidebarOpen}
-          setIsSidebarOpen={setIsSidebarOpen}
         />
       </div>
     </div>

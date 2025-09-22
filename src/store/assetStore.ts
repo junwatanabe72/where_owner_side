@@ -1,4 +1,11 @@
-import { create } from 'zustand';
+import { create } from "zustand";
+import {
+  htmlContentSale,
+  htmlContentLease,
+  htmlContentEvent,
+  htmlContentGroundlease,
+  htmlContentExchange
+} from './mockHtmlContent';
 
 export interface Asset {
   id: number;
@@ -11,6 +18,8 @@ export interface Asset {
   lng: number;
   name?: string;
   zoning?: string;
+  /** Visibility flag – mirrors the definition in src/types/asset.ts. */
+  isPublic?: boolean;
   frontage?: number;
   depth?: number;
   roadAccess?: string;
@@ -79,8 +88,16 @@ export type GroundLeaseProposal = ProposalBase & {
   key_money?: number;
   deposit?: number;
   term_years: number;
-  revision?: { every_years: number; index: "CPI" | "none"; cap?: number; floor?: number; };
-  reversion: { mode: "vacant_land" | "structure_reversion"; residual_value_rate?: number };
+  revision?: {
+    every_years: number;
+    index: "CPI" | "none";
+    cap?: number;
+    floor?: number;
+  };
+  reversion: {
+    mode: "vacant_land" | "structure_reversion";
+    residual_value_rate?: number;
+  };
   expense_rate?: number;
 };
 
@@ -97,8 +114,12 @@ export type OtherProposal = ProposalBase & {
   residual_value_rate?: number;
 };
 
-export type Proposal = SaleProposal | LeaseProposal | ExchangeProposal | GroundLeaseProposal | OtherProposal;
-
+export type Proposal =
+  | SaleProposal
+  | LeaseProposal
+  | ExchangeProposal
+  | GroundLeaseProposal
+  | OtherProposal;
 
 export interface RegistryAlert {
   id: string;
@@ -120,24 +141,8 @@ interface AssetStore {
   getAssetById: (id: number) => Asset | undefined;
   getProposalsForAsset: (assetId: number) => Proposal[];
 }
-const mockProposals: Proposal[] = [
-  {
-    id: "p1",
-    kind: "sale",
-    target: "東京都渋谷区宇田川町 31-2",
-    chiban: "宇田川町83-2",
-    company: "渋谷アセットデベロップメント",
-    created_at: "2025-08-20",
-    summary: "マンション用地として2.4億円提示。",
-    attachments: ["事業収支モデル.xlsx", "基本合意書（ドラフト）.pdf"],
-    mode: "developer",
-    price: 240000000,
-    costs: { broker: 0, taxes: 1200000 },
-    days_to_close: 90,
-    confidence: 0.9,
-    details:
-      "実測・境界確定、土壌・地中障害の確認等を前提。デューデリジェンス期間30〜45日、契約締結後60〜90日で残代金決済を予定。測量・境界確定・税務面は当社主導で進行し、必要実費は別途精算とします。",
-    htmlContent: `
+
+const shibuyahtml =`
     <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -503,24 +508,9 @@ const mockProposals: Proposal[] = [
   </div>
 </body>
 </html>
-    `,
-  },
-  {
-    id: "p4",
-    kind: "lease",
-    target: "東京都渋谷区宇田川町 31-2",
-    chiban: "宇田川町83-2",
-    company: "三井不動産",
-    created_at: "2025-08-18",
-    summary: "月額賃料180万円想定。",
-    attachments: ["賃料査定書.pdf", "テナント需要レポート.pdf"],
-    monthly_rent: 1800000,
-    term_years: 5,
-    opex_ratio: 0.15,
-    occupancy: 0.95,
-    details:
-      "当社が建物のバリューアップ企画・内装監修・リーシングを一体で推進します。5年の定期建物賃貸借を基本とし、想定稼働率95%の収益シミュレーションを添付。オプションで当社による一括借上げ（マスターリース）も選択可能で、賃料キャッシュフローの平準化に寄与します。",
-    htmlContent: `
+    `
+
+const shibuyaleaseHtml = `
       <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -850,26 +840,8 @@ const mockProposals: Proposal[] = [
   </div>
 </body>
 </html>
-
-    `,
-  },
-  {
-    id: "p2",
-    kind: "other",
-    subkind: "event",
-    target: "東京都世田谷区太子堂 4丁目1-1",
-    chiban: "太子堂125-3",
-    company: "世田谷アーバンデベロップメント",
-    created_at: "2025-08-15",
-    summary: "暫定利用（プレイスメイキング）で価値向上。イベント稼働時の来客増シミュレーション付き。",
-    attachments: ["企画書.pdf"],
-    term_years: 1,
-    revenue_year: 5000000,
-    capex: 1200000,
-    opex_ratio: 0.2,
-    details:
-      "本格開発着手前の1年間、週末ポップアップやアートイベント等の暫定利用を実施。初期投資120万円で年間500万円の収益を見込みつつ、来街者増・SNS露出により立地認知を強化します。将来の賃料水準底上げ（テナントアトラクション向上）を狙います。",
-    htmlContent: `
+    `
+const taishidoHtml =`
       <!DOCTYPE html>
       <html>
         <head><title>暫定利用（プレイスメイキング）企画</title></head>
@@ -886,26 +858,8 @@ const mockProposals: Proposal[] = [
           </ul>
         </body>
       </html>
-    `,
-  },
-  {
-    id: "p5",
-    kind: "groundlease",
-    target: "東京都世田谷区太子堂 4丁目1-1",
-    chiban: "太子堂125-3",
-    company: "野村不動産",
-    created_at: "2025-08-12",
-    summary: "50年の事業用定期借地（固定＋改定条項）。長期安定地代と最終的な土地再取得性を確保。",
-    attachments: ["コンサルティングレポート.pdf", "収支シミュレーション.xlsx"],
-    lease_type: "fixed",
-    annual_ground_rent: 8000000,
-    key_money: 20000000,
-    term_years: 50,
-    reversion: { mode: "vacant_land" },
-    expense_rate: 0.05,
-    details:
-      "当社SPCを建て主として事業用定期借地契約を締結。年間地代800万円・一時金2,000万円の提示。10年毎の地代改定条項を設定し、CPI連動オプションにも対応。期間満了時は更地返還（reversion: vacant_land）で地主様の再活用自由度を担保します。",
-    htmlContent: `
+    `
+const taishidoSyakuchiHtml =`
       <!DOCTYPE html>
       <html>
         <head><title>事業用定期借地提案書</title></head>
@@ -923,7 +877,101 @@ const mockProposals: Proposal[] = [
           <p>長期安定収入を確保しつつ、満了時の土地自由度を担保します。</p>
         </body>
       </html>
-    `,
+    `
+
+    const marunouchiHtml = `
+    <!DOCTYPE html>
+    <html>
+      <head><title>等価交換建替えのご提案</title></head>
+      <body>
+        <h1>等価交換事業のご提案</h1>
+        <p><strong>対象物件:</strong> 東京都千代田区丸の内 1丁目1-1</p>
+        <h2>事業概要</h2>
+        <ul>
+          <li>既存建物を解体し高層オフィスへ建替え</li>
+          <li>交換比率: 60%（新築床を地権者様に還元）</li>
+          <li>完成予定: 2028年3月</li>
+          <li>環境性能: ZEB Ready</li>
+        </ul>
+        <h2>運営方針</h2>
+        <p>当社がリーシング・運営計画を主導し、中長期の賃料最大化を図ります。</p>
+      </body>
+    </html>
+  `
+const mockProposals: Proposal[] = [
+  {
+    id: "p1",
+    kind: "sale",
+    target: "東京都渋谷区宇田川町 31-2",
+    chiban: "宇田川町83-2",
+    company: "渋谷アセットデベロップメント",
+    created_at: "2025-08-20",
+    summary: "マンション用地として2.4億円提示。",
+    attachments: ["事業収支モデル.xlsx", "基本合意書（ドラフト）.pdf"],
+    mode: "developer",
+    price: 240000000,
+    costs: { broker: 0, taxes: 1200000 },
+    days_to_close: 90,
+    confidence: 0.9,
+    details:
+      "実測・境界確定、土壌・地中障害の確認等を前提。デューデリジェンス期間30〜45日、契約締結後60〜90日で残代金決済を予定。測量・境界確定・税務面は当社主導で進行し、必要実費は別途精算とします。",
+    htmlContent: shibuyahtml,
+  },
+  {
+    id: "p4",
+    kind: "lease",
+    target: "東京都渋谷区宇田川町 31-2",
+    chiban: "宇田川町83-2",
+    company: "三井不動産",
+    created_at: "2025-08-18",
+    summary: "月額賃料180万円想定。",
+    attachments: ["賃料査定書.pdf", "テナント需要レポート.pdf"],
+    monthly_rent: 1800000,
+    term_years: 5,
+    opex_ratio: 0.15,
+    occupancy: 0.95,
+    details:
+      "当社が建物のバリューアップ企画・内装監修・リーシングを一体で推進します。5年の定期建物賃貸借を基本とし、想定稼働率95%の収益シミュレーションを添付。オプションで当社による一括借上げ（マスターリース）も選択可能で、賃料キャッシュフローの平準化に寄与します。",
+    htmlContent: shibuyaleaseHtml,
+  },
+  {
+    id: "p2",
+    kind: "other",
+    subkind: "event",
+    target: "東京都世田谷区太子堂 4丁目1-1",
+    chiban: "太子堂125-3",
+    company: "世田谷アーバンデベロップメント",
+    created_at: "2025-08-15",
+    summary:
+      "暫定利用（プレイスメイキング）で価値向上。イベント稼働時の来客増シミュレーション付き。",
+    attachments: ["企画書.pdf"],
+    term_years: 1,
+    revenue_year: 5000000,
+    capex: 1200000,
+    opex_ratio: 0.2,
+    details:
+      "本格開発着手前の1年間、週末ポップアップやアートイベント等の暫定利用を実施。初期投資120万円で年間500万円の収益を見込みつつ、来街者増・SNS露出により立地認知を強化します。将来の賃料水準底上げ（テナントアトラクション向上）を狙います。",
+    htmlContent: taishidoHtml,
+  },
+  {
+    id: "p5",
+    kind: "groundlease",
+    target: "東京都世田谷区太子堂 4丁目1-1",
+    chiban: "太子堂125-3",
+    company: "野村不動産",
+    created_at: "2025-08-12",
+    summary:
+      "50年の事業用定期借地（固定＋改定条項）。長期安定地代と最終的な土地再取得性を確保。",
+    attachments: ["コンサルティングレポート.pdf", "収支シミュレーション.xlsx"],
+    lease_type: "fixed",
+    annual_ground_rent: 8000000,
+    key_money: 20000000,
+    term_years: 50,
+    reversion: { mode: "vacant_land" },
+    expense_rate: 0.05,
+    details:
+      "当社SPCを建て主として事業用定期借地契約を締結。年間地代800万円・一時金2,000万円の提示。10年毎の地代改定条項を設定し、CPI連動オプションにも対応。期間満了時は更地返還（reversion: vacant_land）で地主様の再活用自由度を担保します。",
+    htmlContent: taishidoSyakuchiHtml,
   },
   {
     id: "p3",
@@ -932,7 +980,8 @@ const mockProposals: Proposal[] = [
     chiban: "丸の内45-1",
     company: "丸の内デベロップメント",
     created_at: "2025-08-10",
-    summary: "等価交換による高層ビル建替え（ZEB Ready）。地権者還元と環境性能を両立。",
+    summary:
+      "等価交換による高層ビル建替え（ZEB Ready）。地権者還元と環境性能を両立。",
     attachments: ["概算見積.xlsx", "配置図.dxf"],
     ratio: 0.6,
     acquired_area_m2: 408,
@@ -942,28 +991,9 @@ const mockProposals: Proposal[] = [
     opex_ratio: 0.18,
     details:
       "土地資産を等価交換スキームで最新鋭オフィスへ建替え。交換比率60%で地権者持分に応じた新築床（想定408㎡）を取得。ZEB Ready水準での環境性能を確保し、完成後は当社がリーシングを主導。長期安定の賃料収益化を狙います。",
-    htmlContent: `
-      <!DOCTYPE html>
-      <html>
-        <head><title>等価交換建替えのご提案</title></head>
-        <body>
-          <h1>等価交換事業のご提案</h1>
-          <p><strong>対象物件:</strong> 東京都千代田区丸の内 1丁目1-1</p>
-          <h2>事業概要</h2>
-          <ul>
-            <li>既存建物を解体し高層オフィスへ建替え</li>
-            <li>交換比率: 60%（新築床を地権者様に還元）</li>
-            <li>完成予定: 2028年3月</li>
-            <li>環境性能: ZEB Ready</li>
-          </ul>
-          <h2>運営方針</h2>
-          <p>当社がリーシング・運営計画を主導し、中長期の賃料最大化を図ります。</p>
-        </body>
-      </html>
-    `,
+    htmlContent:marunouchiHtml,
   },
 ];
-
 
 const useAssetStore = create<AssetStore>((set, get) => ({
   assets: [
@@ -994,6 +1024,20 @@ const useAssetStore = create<AssetStore>((set, get) => ({
       floorAreaRatio: 600,
       nearestStation: "渋谷駅",
       stationDistance: 8,
+      "referenceIndicators": {
+        "kojiKakaku": {
+          "year": 2025,
+          "sourcePoint": "渋谷5-18 (東京都渋谷区宇田川町21-6)",
+          "pricePerSqm": 28000000,
+          "pricePerTsubo": 92561983,
+          
+        },
+        "rosenka": {
+          "year": 2024,
+          "estimatedPricePerSqm": 22400000,
+         
+        }
+      }
     },
     {
       id: 2,
@@ -1022,6 +1066,19 @@ const useAssetStore = create<AssetStore>((set, get) => ({
       floorAreaRatio: 400,
       nearestStation: "三軒茶屋駅",
       stationDistance: 5,
+      "referenceIndicators": {
+        "kojiKakaku": {
+          "year": 2025,
+          "sourcePoint": "世田谷5-17 (東京都世田谷区太子堂4丁目22-10)",
+          "pricePerSqm": 3440000,
+          "pricePerTsubo": 11371900,
+          "notes": "近隣の商業地の標準地データです。"
+        },
+        "rosenka": {
+          "year": 2024,
+          "estimatedPricePerSqm": 2752000,          
+        }
+      }
     },
     {
       id: 3,
@@ -1050,11 +1107,23 @@ const useAssetStore = create<AssetStore>((set, get) => ({
       floorAreaRatio: 1300,
       nearestStation: "東京駅",
       stationDistance: 3,
+      "referenceIndicators": {
+        "kojiKakaku": {
+          "year": 2025,
+          "sourcePoint": "千代田5-3 (東京都千代田区丸の内1丁目4-1)",
+          "pricePerSqm": 35000000,
+          "pricePerTsubo": 115702479,
+          "notes": "近隣の標準地のデータです。土地取引の目安となる価格です。"
+        },
+        "rosenka": {
+          "year": 2024,
+          "estimatedPricePerSqm": 28000000,
+         
+        }
+      }
     },
   ],
-  
   proposals: mockProposals,
-  
   registryAlerts: [
     {
       id: "r1",
@@ -1078,26 +1147,27 @@ const useAssetStore = create<AssetStore>((set, get) => ({
       note: "建築計画概要書の提出確認",
     },
   ],
-  
   selectedAssetId: null,
-  
   setAssets: (assets) => set({ assets }),
   setProposals: (proposals) => set({ proposals }),
   setRegistryAlerts: (alerts) => set({ registryAlerts: alerts }),
   setSelectedAssetId: (id) => set({ selectedAssetId: id }),
-  
+
   getAssetById: (id) => {
-    return get().assets.find(asset => asset.id === id);
+    return get().assets.find((asset) => asset.id === id);
   },
-  
+
   getProposalsForAsset: (assetId) => {
     const asset = get().getAssetById(assetId);
     if (!asset) return [];
-    
-    return get().proposals.filter(proposal => {
+
+    return get().proposals.filter((proposal) => {
       const targetAddress = proposal.target.toLowerCase();
       const assetAddress = asset.address.toLowerCase();
-      return assetAddress.includes(targetAddress) || targetAddress.includes(assetAddress.split(' ')[0]);
+      return (
+        assetAddress.includes(targetAddress) ||
+        targetAddress.includes(assetAddress.split(" ")[0])
+      );
     });
   },
 }));

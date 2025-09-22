@@ -17,19 +17,17 @@ export const convertAssetsToLandProperties = (assets: Asset[]): LandProperty[] =
   }));
 };
 
-export const getDefaultMapLayers = (privacyLevel: PrivacyLevel): MapLayers => {
-  const isLimited = privacyLevel !== '最小公開';
-  const isFull = privacyLevel === 'フル公開';
-  
+export const getDefaultMapLayers = (_privacyLevel: PrivacyLevel): MapLayers => {
+  // 初期状態は全レイヤーを非表示にする
   return {
-    youto: true,
-    admin: true,
-    koudo: isLimited,
-    bouka: isLimited,
-    height: isFull,
-    boundary: isFull,
-    diff: isFull,
-    night: isFull,
-    potential: isFull,
+    youto: false,
+    admin: false,
+    koudo: false,
+    bouka: false,
+    height: false,
+    boundary: false,
+    diff: false,
+    night: false,
+    potential: false,
   };
 };

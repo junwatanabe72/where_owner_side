@@ -20,6 +20,7 @@ import Map from "../map";
 import "mapbox-gl/dist/mapbox-gl.css";
 import useAssetStore from "../store/assetStore";
 import LayerToggle from "./atoms/LayerToggle";
+import { estimateByUnitPrices } from "../utils";
 import ProposalHtmlModal from "./features/ProposalHtmlModal";
 import AdjacentParcelsTab from "./features/AdjacentParcelsTab";
 
@@ -276,11 +277,12 @@ const AssetDetail: React.FC<AssetDetailProps> = ({ assetId, onBack, privacyLevel
   const tabs = [
     { id: "overview", label: "概要" },
     { id: "valuation", label: "評価" },
-    { id: "legal", label: "法務" },
-    { id: "documents", label: "図面・資料" },
-    { id: "history", label: "履歴" },
-    { id: "proposals", label: "プロの提案" },
-    { id: "adjacentParcels", label: "隣地地番" },
+    { id: "legal", label: "権利" },
+    { id: "documents", label: "資料" },
+  
+    { id: "proposals", label: "受領提案" },
+    { id: "adjacentParcels", label: "隣地状況" },
+     { id: "history", label: "履歴" },
   ];
 
   const landProperties = useMemo<LandProperty[]>(() => {
@@ -311,7 +313,7 @@ const AssetDetail: React.FC<AssetDetailProps> = ({ assetId, onBack, privacyLevel
               <Menu className="w-5 h-5" />
             </button>
             <div className="hidden md:flex items-center space-x-2 text-sm text-gray-600">
-              <span>WHERE</span>
+              <span>WHERE OWNER</span>
               <ChevronRight className="w-4 h-4" />
               <span>資産管理</span>
               <ChevronRight className="w-4 h-4" />
@@ -344,35 +346,6 @@ const AssetDetail: React.FC<AssetDetailProps> = ({ assetId, onBack, privacyLevel
         </div>
 
         <div className="flex-1 p-4 md:p-6 overflow-y-auto h-[calc(100vh-73px)]">
-          <div className="relative bg-white rounded-xl shadow-sm mb-6 overflow-hidden">
-            <div className="h-96 relative">
-              <Map currentStore={landProperties} isSample={false} privacyLevel={privacyLevel} mapMode="map" mapLayers={mapLayers} />
-              <div className="absolute bottom-3 left-3 right-3 z-10">
-                <div className="flex flex-wrap gap-2 bg-white/95 backdrop-blur rounded-lg p-2 shadow-sm border">
-                  <LayerToggle label="用途地域" checked={mapLayers.youto} onChange={(v) => setMapLayers({ ...mapLayers, youto: v })} disabled={false} />
-                  <LayerToggle label="行政区画" checked={mapLayers.admin} onChange={(v) => setMapLayers({ ...mapLayers, admin: v })} disabled={false} />
-                  <LayerToggle label="高度地区" checked={mapLayers.koudo} onChange={(v) => setMapLayers({ ...mapLayers, koudo: v })} disabled={privacyLevel === "最小公開"} />
-                  <LayerToggle label="防火地域" checked={mapLayers.bouka} onChange={(v) => setMapLayers({ ...mapLayers, bouka: v })} disabled={privacyLevel === "最小公開"} />
-                  <LayerToggle label="建物高さ" checked={mapLayers.height} onChange={(v) => setMapLayers({ ...mapLayers, height: v })} disabled={privacyLevel !== "フル公開"} />
-                </div>
-              </div>
-              <AnimatePresence>
-                {showNotification && (
-                  <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="absolute top-4 right-4 bg-white rounded-lg shadow-lg p-3 max-w-xs">
-                    <div className="flex items-start space-x-2">
-                      <Bell className="w-4 h-4 text-blue-600 mt-0.5" />
-                      <div className="flex-1">
-                        <div className="text-sm font-medium">登記変更検出</div>
-                        <div className="text-xs text-gray-600 mt-1">隣地（3223-2）の所有者が変更されました</div>
-                      </div>
-                      <button onClick={() => setShowNotification(false)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
-
           <div className="bg-white rounded-xl shadow-sm">
             <div className="border-b border-gray-200">
               <nav className="flex space-x-8 px-6 overflow-x-auto">
@@ -430,34 +403,7 @@ const AssetDetail: React.FC<AssetDetailProps> = ({ assetId, onBack, privacyLevel
                 </div>
               )}
               {selectedTab === "valuation" && (
-                <div className="space-y-6">
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6">
-                    <h3 className="text-lg font-medium mb-4">評価額</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-                      <div><div className="text-sm text-gray-600">下限値</div><div className="text-xl font-bold">{formatCurrency(asset.valuationMin!)}</div></div>
-                      <div><div className="text-sm text-gray-600">中央値</div><div className="text-2xl font-bold text-blue-600">{formatCurrency(asset.valuationMedian!)}</div></div>
-                      <div><div className="text-sm text-gray-600">上限値</div><div className="text-xl font-bold">{formatCurrency(asset.valuationMax!)}</div></div>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <h4 className="text-sm font-medium text-gray-700 mb-3">単価情報</h4>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm"><span className="text-gray-600">㎡単価</span><span className="font-medium">{formatCurrency(asset.pricePerSqm!)}</span></div>
-                        <div className="flex justify-between text-sm"><span className="text-gray-600">坪単価</span><span className="font-medium">{formatCurrency(asset.pricePerSqm! * 3.3058)}</span></div>
-                        <div className="flex justify-between text-sm"><span className="text-gray-600">近隣比</span><span className="font-medium text-green-600">+{asset.neighborhoodComparison}%</span></div>
-                      </div>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <h4 className="text-sm font-medium text-gray-700 mb-3">参照指標</h4>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between"><span className="px-2 py-1 bg-white rounded text-xs">公示地価</span><span className="text-sm font-medium">38,500円/㎡</span></div>
-                        <div className="flex items-center justify-between"><span className="px-2 py-1 bg-white rounded text-xs">路線価</span><span className="text-sm font-medium">30,800円/㎡</span></div>
-                        <div className="flex items-center justify-between"><span className="px-2 py-1 bg-white rounded text-xs">事例15件</span><span className="text-sm font-medium">41,200円/㎡</span></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <ValuationPanel asset={asset} formatCurrency={formatCurrency} />
               )}
               {selectedTab === "legal" && (
                 <div className="space-y-6">
@@ -517,3 +463,127 @@ const AssetDetail: React.FC<AssetDetailProps> = ({ assetId, onBack, privacyLevel
 };
 
 export default AssetDetail;
+
+// ---- Valuation (Land Only) Panel ----
+const ValuationPanel: React.FC<{ asset: any; formatCurrency: (n: number) => string }> = ({ asset, formatCurrency }) => {
+  // 5年分のダミー系列（基準値 ±8%レンジ）
+  const currentYear = new Date().getFullYear();
+  const baseRosenka = asset?.referenceIndicators?.rosenka?.estimatedPricePerSqm ?? 300000; // 円/㎡
+  const baseKoji = asset?.referenceIndicators?.kojiKakaku?.pricePerSqm ?? 350000; // 円/㎡
+  const multipliers = [0.92, 0.96, 1.0, 1.04, 1.08];
+  const rosenkaSeries = multipliers.map((m, i) => ({ year: currentYear - (4 - i), psm: Math.round(baseRosenka * m) }));
+  const kojiSeries = multipliers.map((m, i) => ({ year: currentYear - (4 - i), psm: Math.round(baseKoji * m) }));
+
+  const [selectedRYear, setSelectedRYear] = useState<number>(rosenkaSeries[4].year);
+  const [selectedKYear, setSelectedKYear] = useState<number>(kojiSeries[4].year);
+
+  const selectedRosenkaPsm = useMemo(() => rosenkaSeries.find(r => r.year === selectedRYear)?.psm, [rosenkaSeries, selectedRYear]);
+  const selectedKojiPsm = useMemo(() => kojiSeries.find(k => k.year === selectedKYear)?.psm, [kojiSeries, selectedKYear]);
+
+  const [rosenkaToMarket, setRosenkaToMarket] = useState(1.15);
+  const [kojiToMarket, setKojiToMarket] = useState(0.95);
+  const [wR, setWR] = useState(0.5); // 0..1（公示は1-wR）
+  const [sens, setSens] = useState(0.1);
+
+  const result = useMemo(() => {
+    return estimateByUnitPrices({
+      areaSqm: asset.area,
+      rosenkaPsm: selectedRosenkaPsm,
+      kojiPsm: selectedKojiPsm,
+      rosenkaToMarket,
+      kojiToMarket,
+      weights: { rosenka: wR, koji: 1 - wR },
+      sensitivity: sens,
+    });
+  }, [asset.area, selectedRosenkaPsm, selectedKojiPsm, rosenkaToMarket, kojiToMarket, wR, sens]);
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6">
+        <h3 className="text-lg font-medium mb-4">土地評価（単価ベース）</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+          <div>
+            <div className="text-sm text-gray-600">下限値</div>
+            <div className="text-xl font-bold">{formatCurrency(Math.round(result.min))}</div>
+          </div>
+          <div>
+            <div className="text-sm text-gray-600">中央値</div>
+            <div className="text-2xl font-bold text-blue-600">{formatCurrency(Math.round(result.median))}</div>
+          </div>
+          <div>
+            <div className="text-sm text-gray-600">上限値</div>
+            <div className="text-xl font-bold">{formatCurrency(Math.round(result.max))}</div>
+          </div>
+        </div>
+        <div className="mt-3 text-xs text-gray-600 flex flex-wrap gap-3">
+          {result.breakdown?.rosenka !== undefined && <span className="px-2 py-1 bg-white rounded border">路線価寄与: {formatCurrency(Math.round(result.breakdown.rosenka))}</span>}
+          {result.breakdown?.koji !== undefined && <span className="px-2 py-1 bg-white rounded border">公示価格寄与: {formatCurrency(Math.round(result.breakdown.koji))}</span>}
+          <span className="px-2 py-1 bg-white rounded border">面積: {asset.area.toLocaleString()}㎡</span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-gray-50 rounded-lg p-4">
+          <h4 className="text-sm font-medium text-gray-700 mb-3">参照単価（直近5年から選択）</h4>
+          <div className="space-y-3 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <label className="text-gray-600">路線価 年度</label>
+              <select value={selectedRYear} onChange={(e) => setSelectedRYear(Number(e.target.value))} className="px-2 py-1 border rounded w-40">
+                {rosenkaSeries.map(r => (
+                  <option key={r.year} value={r.year}>{r.year}年（{r.psm.toLocaleString()} 円/㎡）</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <label className="text-gray-600">公示価格 年度</label>
+              <select value={selectedKYear} onChange={(e) => setSelectedKYear(Number(e.target.value))} className="px-2 py-1 border rounded w-40">
+                {kojiSeries.map(k => (
+                  <option key={k.year} value={k.year}>{k.year}年（{k.psm.toLocaleString()} 円/㎡）</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+        <div className="bg-gray-50 rounded-lg p-4">
+          <h4 className="text-sm font-medium text-gray-700 mb-3">補正・重み・感度</h4>
+          <div className="space-y-4 text-sm">
+            <div>
+              <div className="flex items-center justify-between">
+                <label className="text-gray-600">路線価→市場 補正</label>
+                <span className="text-gray-800 font-medium">× {rosenkaToMarket.toFixed(2)}</span>
+              </div>
+              <input type="range" min={0.9} max={1.3} step={0.01} value={rosenkaToMarket} onChange={(e) => setRosenkaToMarket(Number(e.target.value))} className="w-full" />
+              <div className="flex justify-between text-xs text-gray-500"><span>0.90</span><span>1.10</span><span>1.30</span></div>
+            </div>
+            <div>
+              <div className="flex items-center justify-between">
+                <label className="text-gray-600">公示価格→市場 補正</label>
+                <span className="text-gray-800 font-medium">× {kojiToMarket.toFixed(2)}</span>
+              </div>
+              <input type="range" min={0.85} max={1.15} step={0.01} value={kojiToMarket} onChange={(e) => setKojiToMarket(Number(e.target.value))} className="w-full" />
+              <div className="flex justify-between text-xs text-gray-500"><span>0.85</span><span>1.00</span><span>1.15</span></div>
+            </div>
+            <div>
+              <div className="flex items-center justify-between">
+                <label className="text-gray-600">重み（路線価 ↔ 公示価格）</label>
+                <span className="text-gray-800 font-medium">{Math.round(wR*100)}% / {Math.round((1-wR)*100)}%</span>
+              </div>
+              <input type="range" min={0} max={1} step={0.05} value={wR} onChange={(e) => setWR(Number(e.target.value))} className="w-full" />
+              <div className="mt-1 h-2 rounded-full overflow-hidden bg-gray-200">
+                <div className="h-full bg-blue-500" style={{ width: `${wR*100}%` }} />
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center justify-between">
+                <label className="text-gray-600">感度（±）</label>
+                <span className="text-gray-800 font-medium">{Math.round(sens*100)}%</span>
+              </div>
+              <input type="range" min={0} max={0.3} step={0.01} value={sens} onChange={(e) => setSens(Number(e.target.value))} className="w-full" />
+              <div className="flex justify-between text-xs text-gray-500"><span>0%</span><span>15%</span><span>30%</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
