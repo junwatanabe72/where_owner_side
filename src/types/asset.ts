@@ -12,6 +12,7 @@ export interface Asset {
   owner: string;
   status: string;
   memo: string;
+  zoning?: string;
   valuationMedian?: number;
   name?: string;
   valuationMin?: number;

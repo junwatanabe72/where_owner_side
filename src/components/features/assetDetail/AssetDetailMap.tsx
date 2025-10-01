@@ -85,12 +85,6 @@ const AssetDetailMap: React.FC<AssetDetailMapProps> = ({
                   disabled={!isLayerAllowed('youto', privacyLevel)}
                 />
                 <LayerToggle
-                  label="行政区画"
-                  checked={mapLayers.admin}
-                  onChange={(v) => handleLayerToggle('admin', v)}
-                  disabled={!isLayerAllowed('admin', privacyLevel)}
-                />
-                <LayerToggle
                   label="高度地区"
                   checked={mapLayers.koudo}
                   onChange={(v) => handleLayerToggle('koudo', v)}
@@ -107,12 +101,6 @@ const AssetDetailMap: React.FC<AssetDetailMapProps> = ({
                   checked={mapLayers.height}
                   onChange={(v) => handleLayerToggle('height', v)}
                   disabled={!isLayerAllowed('height', privacyLevel)}
-                />
-                <LayerToggle
-                  label="筆界"
-                  checked={mapLayers.boundary}
-                  onChange={(v) => handleLayerToggle('boundary', v)}
-                  disabled={!isLayerAllowed('boundary', privacyLevel)}
                 />
               </div>
             </div>

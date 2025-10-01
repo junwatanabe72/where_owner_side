@@ -11,7 +11,7 @@ interface MapViewProps {
   landProperties: LandProperty[];
   privacyLevel: PrivacyLevel;
   mapLayers: MapLayers;
-  setMapLayers: (layers: MapLayers) => void;
+  setMapLayers: React.Dispatch<React.SetStateAction<MapLayers>>;
 }
 
 const MapView: React.FC<MapViewProps> = ({
@@ -27,8 +27,18 @@ const MapView: React.FC<MapViewProps> = ({
   const [showBottomBar, setShowBottomBar] = useState(true);
 
   const handleLayerToggle = (layer: keyof MapLayers, value: boolean) => {
-    setMapLayers({ ...mapLayers, [layer]: value });
+    if (!isLayerAllowed(layer, privacyLevel)) {
+      return;
+    }
+    setMapLayers((prev) => ({ ...prev, [layer]: value }));
   };
+
+  const layerOptions: Array<{ key: keyof MapLayers; label: string }> = [
+    { key: 'youto', label: '用途地域' },
+    { key: 'koudo', label: '高度地区' },
+    { key: 'bouka', label: '防火地域' },
+    { key: 'height', label: '建物高さ' },
+  ];
 
   return (
     <div className="relative h-[66vh] min-h-[520px]">
@@ -72,18 +82,12 @@ const MapView: React.FC<MapViewProps> = ({
           <button
             className="text-white bg-red-500 text-xs px-3 py-1 rounded-full"
             onClick={() => {
-              // すべてのレイヤーをオフ
-              setMapLayers({
-                ...mapLayers,
-                youto: false,
-                admin: false,
-                koudo: false,
-                bouka: false,
-                height: false,
-                boundary: false,
-                diff: false,
-                night: false,
-                potential: false,
+              setMapLayers((prev) => {
+                const cleared: MapLayers = { ...prev };
+                (Object.keys(cleared) as Array<keyof MapLayers>).forEach((layer) => {
+                  cleared[layer] = false;
+                });
+                return cleared;
               });
             }}
           >
@@ -91,78 +95,15 @@ const MapView: React.FC<MapViewProps> = ({
           </button>
           {showBottomBar && (
             <div className="hidden md:flex flex-wrap items-center gap-3 text-sm">
-              <label className="flex items-center gap-1">
-                <input 
-                  type="checkbox" 
-                  className="w-4 h-4"
-                  checked={mapLayers.night}
-                  onChange={(e) => handleLayerToggle('night', e.target.checked)}
-                /> 
-                夜間光
-              </label>
-              <label className="flex items-center gap-1">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4"
-                  checked={mapLayers.youto}
-                  onChange={(e) => handleLayerToggle('youto', e.target.checked)}
+              {layerOptions.map(({ key, label }) => (
+                <LayerToggle
+                  key={key}
+                  label={label}
+                  checked={mapLayers[key]}
+                  onChange={(checked) => handleLayerToggle(key, checked)}
+                  disabled={!isLayerAllowed(key, privacyLevel)}
                 />
-                用途地域
-              </label>
-              <label className="flex items-center gap-1">
-                <input 
-                  type="checkbox" 
-                  className="w-4 h-4"
-                  checked={mapLayers.potential}
-                  onChange={(e) => handleLayerToggle('potential', e.target.checked)}
-                /> 
-                産業候補ポイント
-              </label>
-              <label className="flex items-center gap-1">
-                <input 
-                  type="checkbox" 
-                  className="w-4 h-4"
-                  checked={mapLayers.koudo}
-                  onChange={(e) => handleLayerToggle('koudo', e.target.checked)}
-                /> 
-                高度地区
-              </label>
-              <label className="flex items-center gap-1">
-                <input 
-                  type="checkbox" 
-                  className="w-4 h-4"
-                  checked={mapLayers.diff}
-                  onChange={(e) => handleLayerToggle('diff', e.target.checked)}
-                /> 
-                差分の大きい地域
-              </label>
-              <label className="flex items-center gap-1">
-                <input 
-                  type="checkbox" 
-                  className="w-4 h-4"
-                  checked={mapLayers.bouka}
-                  onChange={(e) => handleLayerToggle('bouka', e.target.checked)}
-                /> 
-                防火地域
-              </label>
-              <label className="flex items-center gap-1">
-                <input 
-                  type="checkbox" 
-                  className="w-4 h-4"
-                  checked={mapLayers.boundary}
-                  onChange={(e) => handleLayerToggle('boundary', e.target.checked)}
-                /> 
-                筆界
-              </label>
-              <label className="flex items-center gap-1">
-                <input 
-                  type="checkbox" 
-                  className="w-4 h-4"
-                  checked={mapLayers.admin}
-                  onChange={(e) => handleLayerToggle('admin', e.target.checked)}
-                /> 
-                行政区画
-              </label>
+              ))}
             </div>
           )}
           <button onClick={() => setShowBottomBar(!showBottomBar)} className="ml-1 p-1 rounded-full hover:bg-gray-100">

@@ -26,13 +26,15 @@ This document outlines the implementation of a Mapbox-based map feature in the m
   - Click event handling
   - Popup integration
 
-#### 3. Map Layer Controls (`src/map/MapLayerToggleButton/`)
-- **Purpose**: Toggle visibility of various map layers
-- **Layer Types**:
+#### 3. Map Layer Controls (`src/components/features/map/MapView.tsx` / `src/components/features/assetDetail/AssetDetailMap.tsx`)
+- **Purpose**: Toggle visibility of Mapbox custom layers exposed to the user
+- **Currently supported layer toggles** (2025-10-01 時点):
   - 用途地域 (Land use zones)
-  - 防火指定 (Fire prevention zones)
+  - 防火地域 (Fire prevention zones)
   - 高度地区 (Height districts)
-  - 建物高度 (Building heights)
+  - 建物高さ (Building height visualization)
+- **Planned layers (UI 非表示)**:
+  - 夜間光 / 産業候補ポイント / 筆界 / 行政区画 などはスタイル実装待ちのため UI から除去済み。対応時に `map/constants.ts` とレイヤートグルを再拡張する。
 
 #### 4. Layer Click Handler (`src/map/layerClickHandler/`)
 - **Purpose**: Handle interactions with map layers

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Bell, ChevronDown, Settings, User, Menu, AlertCircle } from 'lucide-react';
 import { PrivacyLevel } from '../../../types';
 
@@ -17,6 +17,43 @@ const TopNav: React.FC<TopNavProps> = ({
   setShowSettings,
   onMenuClick,
 }) => {
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showSettings) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowSettings(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showSettings, setShowSettings]);
+
+  const privacyOptions: Array<{ level: PrivacyLevel; description: string }> = [
+    {
+      level: '最小公開',
+      description: '所在地と概要のみを共有',
+    },
+    {
+      level: '限定公開',
+      description: '評価レンジなどを提携先と共有',
+    },
+    {
+      level: 'フル公開',
+      description: '社内メンバーに全情報を共有',
+    },
+  ];
+
+  const handleOptionChange = (level: PrivacyLevel) => {
+    if (level !== privacyLevel) {
+      setPrivacyLevel(level);
+    }
+    setShowSettings(false);
+  };
+
   return (
     <div className="w-full bg-[#0b3f4a] text-white relative">
       <div className="max-w-[1600px] mx-auto px-3 md:px-4">
@@ -39,6 +76,39 @@ const TopNav: React.FC<TopNavProps> = ({
           <div className="flex items-center gap-3">
             <div className="hidden md:flex items-center gap-1 text-sm opacity-90">
               JA <ChevronDown className="w-4 h-4" />
+            </div>
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                className="flex items-center gap-1 text-sm bg-white/10 px-2 py-1 rounded-md hover:bg-white/15 transition-colors"
+                aria-haspopup="menu"
+                aria-expanded={showSettings}
+              >
+                <Settings className="w-4 h-4" />
+                <span>{privacyLevel}</span>
+                <ChevronDown className="w-4 h-4" />
+              </button>
+              {showSettings && (
+                <div
+                  className="absolute right-0 mt-2 w-64 rounded-lg bg-white text-slate-900 shadow-lg border border-slate-200 z-20"
+                  role="menu"
+                >
+                  <div className="px-4 py-2 text-xs font-semibold text-slate-500 tracking-wide">
+                    公開レベルを選択
+                  </div>
+                  <div className="px-2 pb-2 space-y-1">
+                    {privacyOptions.map((option) => (
+                      <PrivacyOption
+                        key={option.level}
+                        level={option.level}
+                        description={option.description}
+                        checked={privacyLevel === option.level}
+                        onChange={() => handleOptionChange(option.level)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="hidden sm:flex items-center gap-1 text-sm bg-white/10 px-2 py-1 rounded-md">
               <AlertCircle className="w-4 h-4 text-yellow-300" />
