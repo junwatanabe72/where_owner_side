@@ -29,9 +29,14 @@ export const useMapLayers = (privacyLevel: PrivacyLevel) => {
     setMapLayers((prev) => ({ ...prev, [layer]: value }));
   };
 
+  const resetLayers = () => {
+    setMapLayers(getDefaultMapLayers(privacyLevel));
+  };
+
   return {
     mapLayers,
     setMapLayers,
     updateLayer,
+    resetLayers,
   };
 };

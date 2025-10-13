@@ -1,31 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import {
-  ArrowLeft,
-  Home,
-  Calendar,
-  FileText,
-  ChevronRight,
-  Star,
-  Info,
-  Download,
-  Bell,
-  Ruler,
-  Navigation,
-  X,
-  Menu,
-  AlertTriangle,
-} from 'lucide-react';
+import { ArrowLeft, ChevronRight, Bell, Menu, FileText, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PrivacyLevel, MapLayers, LandProperty } from '../types';
-import { getDefaultMapLayers, estimateByUnitPrices } from '../utils';
+import { PrivacyLevel } from '../types';
+import { estimateByUnitPrices } from '../utils';
 import useAssetStore from '../store/assetStore';
 import AssetSidebar from './features/assetDetail/AssetSidebar';
-import AssetDetailMap from './features/assetDetail/AssetDetailMap';
 import ProposalsTab from './features/assetDetail/ProposalsTab';
 import RegistryTab from './features/assetDetail/RegistryTab';
-import ProposalHtmlModal from './features/ProposalHtmlModal';
-import AdjacentParcelsTab from './features/AdjacentParcelsTab';
-import 'mapbox-gl/dist/mapbox-gl.css';
 
 interface AssetDetailProps {
   assetId: number;
@@ -35,17 +16,12 @@ interface AssetDetailProps {
 
 const AssetDetail: React.FC<AssetDetailProps> = ({ assetId, onBack, privacyLevel }) => {
   const { getAssetById, getProposalsForAsset } = useAssetStore();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('registry');
   const [showNotification, setShowNotification] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [mapLayers, setMapLayers] = useState<MapLayers>(getDefaultMapLayers(privacyLevel));
 
   const asset = getAssetById(assetId);
   const proposals = getProposalsForAsset(assetId);
-
-  useEffect(() => {
-    setMapLayers(getDefaultMapLayers(privacyLevel));
-  }, [privacyLevel]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -68,24 +44,13 @@ const AssetDetail: React.FC<AssetDetailProps> = ({ assetId, onBack, privacyLevel
   };
 
   const tabs = [
-    { id: 'overview', label: '概要' },
+    { id: 'registry', label: '登記概要' },
     { id: 'valuation', label: '評価' },
     { id: 'legal', label: '法務' },
     { id: 'documents', label: '図面・資料' },
     { id: 'history', label: '履歴' },
     { id: 'proposals', label: 'プロの提案' },
-    { id: 'adjacentParcels', label: '隣地地番' },
   ];
-
-  const landProperties = useMemo<LandProperty[]>(() => {
-    if (!asset) return [];
-    return [{
-      nearStation: [{ min: 5, geometry: { lat: asset.lat, lng: asset.lng } }],
-      wood: { originalRaito: 750 },
-      address: asset.address,
-      area: asset.area,
-    }];
-  }, [asset]);
 
   if (!asset) {
     return (
@@ -187,23 +152,16 @@ const AssetDetail: React.FC<AssetDetailProps> = ({ assetId, onBack, privacyLevel
 
           {/* Tab Content */}
           <div className="flex-1 p-6">
-            {activeTab === 'overview' && (
-              <div className="h-full">
-                <AssetDetailMap
-                  landProperties={landProperties}
-                  privacyLevel={privacyLevel}
-                  mapLayers={mapLayers}
-                  setMapLayers={setMapLayers}
-                />
-              </div>
-            )}
-
             {activeTab === 'valuation' && (
               <ValuationTab asset={asset} formatCurrency={formatCurrency} />
             )}
 
             {activeTab === 'legal' && (
               <LegalTab asset={asset} />
+            )}
+
+            {activeTab === 'registry' && (
+              <RegistryTab />
             )}
 
             {activeTab === 'documents' && (
@@ -216,10 +174,6 @@ const AssetDetail: React.FC<AssetDetailProps> = ({ assetId, onBack, privacyLevel
 
             {activeTab === 'proposals' && (
               <ProposalsTab proposals={proposals} />
-            )}
-
-            {activeTab === 'adjacentParcels' && (
-              <RegistryTab />
             )}
           </div>
         </div>
@@ -240,7 +194,7 @@ const AssetDetail: React.FC<AssetDetailProps> = ({ assetId, onBack, privacyLevel
                 <div className="text-sm font-medium text-gray-900">隣地の登記情報が更新されました</div>
                 <div className="text-xs text-gray-600 mt-1">宇田川町83-4の所有者が変更されました</div>
                 <button
-                  onClick={() => setActiveTab('adjacentParcels')}
+                  onClick={() => setActiveTab('registry')}
                   className="text-xs text-blue-600 hover:text-blue-700 mt-2"
                 >
                   詳細を確認 →

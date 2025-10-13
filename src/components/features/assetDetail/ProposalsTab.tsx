@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, DollarSign } from 'lucide-react';
+import { Eye, DollarSign, FileText } from 'lucide-react';
 import { Proposal } from '../../../types';
 import {
   getKindLabel,
@@ -10,6 +10,7 @@ import {
 } from '../../../utils';
 import ProposalDetailView from '../../ProposalDetailView';
 import ProposalComparison from '../../ProposalComparison';
+import ProposalHtmlModal from '../ProposalHtmlModal';
 
 interface ProposalsTabProps {
   proposals: Proposal[];
@@ -17,13 +18,23 @@ interface ProposalsTabProps {
 
 const ProposalsTab: React.FC<ProposalsTabProps> = ({ proposals }) => {
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
-  const [showHtml, setShowHtml] = useState(false);
+  const [showDetail, setShowDetail] = useState(false);
+  const [isHtmlModalOpen, setIsHtmlModalOpen] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
   const [selectedForComparison, setSelectedForComparison] = useState<string[]>([]);
 
   const handleViewDetail = (proposal: Proposal) => {
     setSelectedProposal(proposal);
-    setShowHtml(true);
+    setIsHtmlModalOpen(false);
+    setShowDetail(true);
+  };
+
+  const handleOpenHtml = (proposal: Proposal) => {
+    setSelectedProposal(proposal);
+    if (proposal.htmlContent) {
+      setIsHtmlModalOpen(true);
+      setShowDetail(false);
+    }
   };
 
   const handleComparisonToggle = (proposalId: string | number) => {
@@ -44,16 +55,25 @@ const ProposalsTab: React.FC<ProposalsTabProps> = ({ proposals }) => {
     }
   };
 
-  if (showHtml && selectedProposal) {
+  if (showDetail && selectedProposal) {
     return (
-      <ProposalDetailView
-        proposal={selectedProposal}
-        onBack={() => {
-          setShowHtml(false);
-          setSelectedProposal(null);
-        }}
-        onShowHtml={() => {}}
-      />
+      <>
+        <ProposalDetailView
+          proposal={selectedProposal}
+          onBack={() => {
+            setShowDetail(false);
+            setSelectedProposal(null);
+            setIsHtmlModalOpen(false);
+          }}
+          onShowHtml={selectedProposal.htmlContent ? () => setIsHtmlModalOpen(true) : undefined}
+        />
+        {isHtmlModalOpen && selectedProposal.htmlContent && (
+          <ProposalHtmlModal
+            htmlContent={selectedProposal.htmlContent}
+            onClose={() => setIsHtmlModalOpen(false)}
+          />
+        )}
+      </>
     );
   }
 
@@ -153,19 +173,37 @@ const ProposalsTab: React.FC<ProposalsTabProps> = ({ proposals }) => {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <button
-                      onClick={() => handleViewDetail(proposal)}
-                      className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
-                    >
-                      <Eye className="w-4 h-4 mr-1" />
-                      詳細を見る
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleViewDetail(proposal)}
+                        className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
+                      >
+                        <Eye className="w-4 h-4 mr-1" />
+                        詳細を見る
+                      </button>
+                      {proposal.htmlContent && (
+                        <button
+                          onClick={() => handleOpenHtml(proposal)}
+                          className="inline-flex items-center px-3 py-1 border border-blue-200 shadow-sm text-xs font-medium rounded text-blue-700 bg-blue-50 hover:bg-blue-100"
+                        >
+                          <FileText className="w-4 h-4 mr-1" />
+                          提案書
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+      )}
+
+      {isHtmlModalOpen && selectedProposal?.htmlContent && (
+        <ProposalHtmlModal
+          htmlContent={selectedProposal.htmlContent}
+          onClose={() => setIsHtmlModalOpen(false)}
+        />
       )}
     </div>
   );

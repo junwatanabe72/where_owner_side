@@ -3,3 +3,4 @@ export * from './validators';
 export * from './mapHelpers';
 export * from './proposalHelpers';
 export * from './valuation';
+export * from './assetMetrics';

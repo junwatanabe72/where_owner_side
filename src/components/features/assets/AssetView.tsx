@@ -2,7 +2,12 @@ import React, { useState, useMemo } from 'react';
 import { X, Map, List, Building2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Asset, Proposal, PrivacyLevel } from '../../../types';
-import { convertAssetsToLandProperties, formatCurrency } from '../../../utils';
+import {
+  convertAssetsToLandProperties,
+  formatCurrency,
+  formatAssetStatus,
+  calculateAssetTotals,
+} from '../../../utils';
 import { useMapLayers } from '../../../hooks';
 import { MapView } from '../map';
 import PropertySlideOver from './PropertySlideOver';
@@ -12,6 +17,7 @@ interface AssetViewProps {
   assets: Asset[];
   proposals: Proposal[];
   privacyLevel: PrivacyLevel;
+  selectedAssetId: number | null;
   onAssetClick: (assetId: number) => void;
 }
 
@@ -19,23 +25,24 @@ const AssetView: React.FC<AssetViewProps> = ({
   assets,
   proposals,
   privacyLevel,
+  selectedAssetId,
   onAssetClick,
 }) => {
-  const [selected, setSelected] = useState<number | null>(null);
   const [openDetail, setOpenDetail] = useState(false);
   const [viewMode, setViewMode] = useState<'map' | 'list'>('list');
   const [showAssetSidebar, setShowAssetSidebar] = useState(false);
 
-  const { mapLayers, setMapLayers } = useMapLayers(privacyLevel);
+  const { mapLayers, updateLayer, resetLayers } = useMapLayers(privacyLevel);
 
   const selectedAsset = useMemo(
-    () => assets.find((a) => a.id === selected) || null,
-    [selected, assets]
+    () => assets.find((a) => a.id === selectedAssetId) || null,
+    [selectedAssetId, assets]
   );
 
-  const totalValuation = useMemo(() => {
-    return assets.reduce((sum, asset) => sum + (asset.valuationMedian || 0), 0);
-  }, [assets]);
+  const { totalValuation } = useMemo(
+    () => calculateAssetTotals(assets),
+    [assets]
+  );
 
   const landProperties = useMemo(
     () => convertAssetsToLandProperties(assets),
@@ -43,7 +50,7 @@ const AssetView: React.FC<AssetViewProps> = ({
   );
 
   const handleAssetClick = (assetId: number) => {
-    setSelected(assetId);
+    setOpenDetail(true);
     onAssetClick(assetId);
   };
 
@@ -85,7 +92,8 @@ const AssetView: React.FC<AssetViewProps> = ({
                 landProperties={landProperties}
                 privacyLevel={privacyLevel}
                 mapLayers={mapLayers}
-                setMapLayers={setMapLayers}
+                onLayerToggle={updateLayer}
+                onResetLayers={resetLayers}
               />
 
               {/* Floating Action Button */}
@@ -151,7 +159,7 @@ const AssetView: React.FC<AssetViewProps> = ({
                                       面積: {asset.area.toLocaleString('ja-JP')}㎡
                                     </span>
                                     <span className="text-slate-500">
-                                      状態: {asset.status === 'owned' ? '所有中' : asset.status === 'rental' ? '賃貸中' : '空き'}
+                                      状態: {formatAssetStatus(asset.status)}
                                     </span>
                                   </div>
                                 </div>

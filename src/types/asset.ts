@@ -18,6 +18,10 @@ export interface Asset {
   valuationMin?: number;
   valuationMax?: number;
   pricePerSqm?: number;
+  coverageRatio?: number;
+  floorAreaRatio?: number;
+  nearestStation?: string;
+  stationDistance?: number;
 }
 
 export interface RegistryAlert {

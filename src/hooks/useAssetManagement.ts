@@ -1,6 +1,10 @@
 import { useState, useMemo } from 'react';
 import { Proposal, PrivacyLevel } from '../types';
-import { convertAssetsToLandProperties, filterProposalsByAsset } from '../utils';
+import {
+  convertAssetsToLandProperties,
+  filterProposalsByAsset,
+  calculateAssetTotals,
+} from '../utils';
 import useAssetStore from '../store/assetStore';
 
 export const useAssetManagement = () => {
@@ -20,9 +24,10 @@ export const useAssetManagement = () => {
     [selectedAssetId, assets]
   );
 
-  const totalValuation = useMemo(() => {
-    return assets.reduce((sum, asset) => sum + (asset.valuationMedian || 0), 0);
-  }, [assets]);
+  const { totalValuation } = useMemo(
+    () => calculateAssetTotals(assets),
+    [assets]
+  );
 
   const landProperties = useMemo(
     () => convertAssetsToLandProperties(assets),

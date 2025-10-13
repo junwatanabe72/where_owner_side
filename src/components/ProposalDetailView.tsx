@@ -45,7 +45,7 @@ const KPICard: React.FC<{ icon: React.ReactNode; label: string; value: string | 
   );
 };
 
-const ProposalDetailView: React.FC<ProposalDetailViewProps> = ({ proposal, onBack }) => {
+const ProposalDetailView: React.FC<ProposalDetailViewProps> = ({ proposal, onBack, onShowHtml }) => {
   const [activeTab, setActiveTab] = useState('overview');
   
   const formatValue = (value: any) => {
@@ -161,6 +161,18 @@ const ProposalDetailView: React.FC<ProposalDetailViewProps> = ({ proposal, onBac
               </div>
             )}
           </div>
+          {proposal.htmlContent && onShowHtml && (
+            <div className="mt-4 sm:mt-6">
+              <button
+                type="button"
+                onClick={onShowHtml}
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                オリジナル提案書を開く
+              </button>
+            </div>
+          )}
         </div>
 
         {/* 主要KPI */}

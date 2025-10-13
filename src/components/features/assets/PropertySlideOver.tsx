@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { X } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Asset, Proposal } from '../../../types';
-import { formatArea, filterProposalsByAsset } from '../../../utils';
+import { formatArea, formatAssetStatus, filterProposalsByAsset } from '../../../utils';
 import { ProposalSection } from '../proposals';
 
 interface PropertySlideOverProps {
@@ -58,7 +58,9 @@ const PropertySlideOver: React.FC<PropertySlideOverProps> = ({
                       面積: {formatArea(asset.area)}
                     </div>
                     <div className="text-slate-600">所有者: {asset.owner}</div>
-                    <div className="text-slate-600">現況: {asset.status}</div>
+                    <div className="text-slate-600">
+                      現況: {formatAssetStatus(asset.status)}
+                    </div>
                     <div className="text-slate-600">{asset.memo}</div>
                   </div>
                   <ProposalSection asset={asset} proposals={relatedProposals} />

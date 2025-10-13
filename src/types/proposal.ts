@@ -6,6 +6,7 @@ export interface Proposal {
   company: string;
   created_at: string;
   target?: string;
+  chiban?: string;
   price?: number;
   monthly_rent?: number;
   annual_ground_rent?: number;
@@ -14,4 +15,9 @@ export interface Proposal {
   description?: string;
   benefits?: string[];
   risks?: string[];
+  summary?: string;
+  attachments?: string[];
+  confidence?: number;
+  details?: string;
+  htmlContent?: string;
 }

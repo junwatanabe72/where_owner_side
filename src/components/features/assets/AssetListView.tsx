@@ -1,7 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { ChevronUp, ChevronDown, MapPin, Building2, Ruler, Train, Home } from 'lucide-react';
 import { PrivacyLevel } from '../../../types';
-import { formatCurrency } from '../../../utils';
+import {
+  formatCurrency,
+  formatArea as formatAreaDetailed,
+  formatAreaByPrivacy,
+  formatValuationByPrivacy,
+  calculateAssetTotals,
+} from '../../../utils';
 import useAssetStore from '../../../store/assetStore';
 
 interface AssetListViewProps {
@@ -82,22 +88,10 @@ const AssetListView: React.FC<AssetListViewProps> = ({
       <ChevronDown className="w-4 h-4" />;
   };
 
-
-  const formatArea = (area?: number) => {
-    if (!area) return '-';
-    if (privacyLevel === '最小公開') return '***';
-    return `${area.toLocaleString('ja-JP')}㎡`;
-  };
-
-  const formatValuation = (value?: number) => {
-    if (!value) return '-';
-    if (privacyLevel === '最小公開') return '***';
-    if (privacyLevel === '限定公開') {
-      const millions = Math.round(value / 10000000);
-      return `約${millions}千万円`;
-    }
-    return formatCurrency(value);
-  };
+  const { totalArea, totalValuation } = useMemo(
+    () => calculateAssetTotals(assets),
+    [assets]
+  );
 
   return (
     <div className="bg-white rounded-2xl shadow overflow-hidden">
@@ -219,7 +213,7 @@ const AssetListView: React.FC<AssetListViewProps> = ({
                   <div className="flex items-center justify-end gap-2">
                     <Ruler className="w-4 h-4 text-slate-400" />
                     <span className="text-sm font-medium text-slate-900">
-                      {formatArea(asset.area)}
+                      {formatAreaByPrivacy(asset.area, privacyLevel)}
                     </span>
                   </div>
                 </td>
@@ -245,7 +239,7 @@ const AssetListView: React.FC<AssetListViewProps> = ({
                 </td>
                 <td className="px-6 py-4 text-right">
                   <div className="text-sm font-semibold text-slate-900">
-                    {formatValuation(asset.valuationMedian)}
+                    {formatValuationByPrivacy(asset.valuationMedian, privacyLevel)}
                   </div>
                 </td>
               </tr>
@@ -267,10 +261,10 @@ const AssetListView: React.FC<AssetListViewProps> = ({
           </div>
           <div className="flex items-center gap-4">
             <div>
-              総地積: {formatArea(assets.reduce((sum, asset) => sum + (asset.area || 0), 0))}
+              総地積: {formatAreaDetailed(totalArea)}
             </div>
             <div>
-              総評価額: {formatCurrency(assets.reduce((sum, asset) => sum + (asset.valuationMedian || 0), 0))}
+              総評価額: {formatCurrency(totalValuation)}
             </div>
           </div>
         </div>

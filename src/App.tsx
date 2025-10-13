@@ -44,6 +44,7 @@ export default function App() {
           assets={assets}
           proposals={proposals}
           privacyLevel={privacyLevel}
+          selectedAssetId={selectedAssetId}
           onAssetClick={handleAssetSelect}
         />
       </div>

@@ -11,14 +11,16 @@ interface MapViewProps {
   landProperties: LandProperty[];
   privacyLevel: PrivacyLevel;
   mapLayers: MapLayers;
-  setMapLayers: React.Dispatch<React.SetStateAction<MapLayers>>;
+  onLayerToggle: (layer: keyof MapLayers, value: boolean) => void;
+  onResetLayers: () => void;
 }
 
 const MapView: React.FC<MapViewProps> = ({
   landProperties,
   privacyLevel,
   mapLayers,
-  setMapLayers,
+  onLayerToggle,
+  onResetLayers,
 }) => {
   // 初期は衛星
   const [mapMode, setMapMode] = useState<MapMode>('sat');
@@ -30,7 +32,7 @@ const MapView: React.FC<MapViewProps> = ({
     if (!isLayerAllowed(layer, privacyLevel)) {
       return;
     }
-    setMapLayers((prev) => ({ ...prev, [layer]: value }));
+    onLayerToggle(layer, value);
   };
 
   const layerOptions: Array<{ key: keyof MapLayers; label: string }> = [
@@ -82,13 +84,7 @@ const MapView: React.FC<MapViewProps> = ({
           <button
             className="text-white bg-red-500 text-xs px-3 py-1 rounded-full"
             onClick={() => {
-              setMapLayers((prev) => {
-                const cleared: MapLayers = { ...prev };
-                (Object.keys(cleared) as Array<keyof MapLayers>).forEach((layer) => {
-                  cleared[layer] = false;
-                });
-                return cleared;
-              });
+              onResetLayers();
             }}
           >
             解除
