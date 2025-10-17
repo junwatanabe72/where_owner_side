@@ -8,6 +8,23 @@ import { customLayers, mapboxStyleURL, tokyoStationGeo, osakaStationGeo } from "
 import LayerClickHandler from "./layerClickHandler";
 import type { LandProperty, MapLayers } from "../types";
 
+const mapPrototype = mapboxgl.Map.prototype as {
+  _queryFogOpacity?: (lngLat: mapboxgl.LngLat) => number;
+  __patchedFogGuard?: boolean;
+};
+
+if (mapPrototype && !mapPrototype.__patchedFogGuard && typeof mapPrototype._queryFogOpacity === "function") {
+  const originalQueryFogOpacity = mapPrototype._queryFogOpacity;
+  mapPrototype._queryFogOpacity = function patchedQueryFogOpacity(this: mapboxgl.Map, ...args) {
+    try {
+      return originalQueryFogOpacity.apply(this, args);
+    } catch (error) {
+      return 0;
+    }
+  };
+  mapPrototype.__patchedFogGuard = true;
+}
+
 const markerPrototype = mapboxgl.Marker.prototype as {
   _evaluateOpacity?: (map: mapboxgl.Map) => void;
   __patchedOpacityGuard?: boolean;
