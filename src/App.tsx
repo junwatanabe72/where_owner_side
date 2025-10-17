@@ -9,7 +9,6 @@ export default function App() {
   const {
     assets,
     proposals,
-    registryAlerts,
     selectedAssetId,
     privacyLevel,
     setPrivacyLevel,

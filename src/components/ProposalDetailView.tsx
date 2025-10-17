@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
-import { Proposal } from '../store/assetStore';
+import React, { useMemo, useState } from 'react';
+import { Asset, Proposal } from '../types';
 import { ArrowLeft, TrendingUp, Calendar, DollarSign, Shield, Building, AlertCircle, ChevronRight, BarChart3, PieChart, Activity, FileText } from 'lucide-react';
+import { calculateProposalMetrics, getKindLabel as getKindLabelFromUtil, getBadgeColor } from '../utils';
 
 interface ProposalDetailViewProps {
-  proposal: any;
+  proposal: Proposal;
   onBack: () => void;
   onShowHtml?: () => void;
+  asset?: Asset;
 }
 
 const DetailRow: React.FC<{ label: string; value: React.ReactNode; highlight?: boolean }> = ({ label, value, highlight }) => (
@@ -45,8 +47,15 @@ const KPICard: React.FC<{ icon: React.ReactNode; label: string; value: string | 
   );
 };
 
-const ProposalDetailView: React.FC<ProposalDetailViewProps> = ({ proposal, onBack, onShowHtml }) => {
+const ProposalDetailView: React.FC<ProposalDetailViewProps> = ({ proposal, onBack, onShowHtml, asset }) => {
   const [activeTab, setActiveTab] = useState('overview');
+  const metrics = useMemo(() => calculateProposalMetrics(proposal, asset), [proposal, asset]);
+  const valuation = asset?.valuationMedian ?? asset?.valuationMax ?? asset?.valuationMin;
+  const discountRate = proposal.kind === 'sale' && valuation
+    ? (valuation - (proposal.price ?? 0)) / valuation
+    : undefined;
+  const effectiveYield = proposal.kind === 'sale' ? discountRate : metrics.netYield;
+  const saleCosts = proposal.kind === 'sale' ? proposal.costs : undefined;
   
   const formatValue = (value: any) => {
     if (typeof value === 'number') return value.toLocaleString('ja-JP');
@@ -54,68 +63,32 @@ const ProposalDetailView: React.FC<ProposalDetailViewProps> = ({ proposal, onBac
     return value || '-';
   };
 
-  const getKindLabel = (kind: Proposal['kind']) => {
-    const labels = {
-      sale: '売却',
-      lease: '賃貸',
-      exchange: '等価交換',
-      groundlease: '事業用定期借地',
-      other: 'その他'
-    };
-    return labels[kind] || kind;
-  };
+  const getKindLabel = getKindLabelFromUtil;
 
-  const getKindColor = (kind: Proposal['kind']) => {
-    const colors = {
-      sale: 'bg-red-100 text-red-800 border-red-300',
-      lease: 'bg-purple-100 text-purple-800 border-purple-300',
-      exchange: 'bg-blue-100 text-blue-800 border-blue-300',
-      groundlease: 'bg-green-100 text-green-800 border-green-300',
-      other: 'bg-gray-100 text-gray-800 border-gray-300'
-    };
-    return colors[kind] || 'bg-gray-100 text-gray-800';
-  };
+  const getKindColor = (kind: Proposal['kind']) => getBadgeColor(kind);
 
-  const calculateNPV = () => {
-    // 簡易的なNPV計算のダミー実装
-    if (proposal.price) return Math.round(proposal.price * 0.85);
-    if (proposal.monthly_rent && proposal.term_years) {
-      return Math.round(proposal.monthly_rent * 12 * proposal.term_years * 0.7);
-    }
-    if (proposal.annual_ground_rent && proposal.term_years) {
-      return Math.round(proposal.annual_ground_rent * proposal.term_years * 0.75);
-    }
-    return 0;
-  };
+  const calculateNPV = () => metrics.npv;
 
   const calculateIRR = () => {
-    // 簡易的なIRR計算のダミー実装
-    if (proposal.kind === 'sale') return '即時';
-    if (proposal.kind === 'lease') return '8.5%';
-    if (proposal.kind === 'exchange') return '12.3%';
-    if (proposal.kind === 'groundlease') return '6.7%';
-    return '7.2%';
+    if (effectiveYield === undefined) return '―';
+    if (proposal.kind === 'sale') {
+      return `${(effectiveYield * 100).toFixed(1)}%`;
+    }
+    return `${(effectiveYield * 100).toFixed(2)}%`;
   };
 
   const calculatePayback = () => {
-    // 回収期間の簡易計算
     if (proposal.kind === 'sale') return '即時';
-    if (proposal.kind === 'lease') return '8年';
-    if (proposal.kind === 'exchange') return '15年';
-    if (proposal.kind === 'groundlease') return `${proposal.term_years}年`;
-    return '10年';
+    if (metrics.paybackYears === undefined) return '―';
+    if (metrics.paybackYears === 0) return '即時';
+    return `${metrics.paybackYears.toFixed(1)}年`;
   };
 
   const getRiskScore = () => {
-    // リスクスコアの簡易評価
-    const scores: Record<string, { score: string; label: string; color: string }> = {
-      sale: { score: 'A', label: '低リスク', color: 'green' },
-      lease: { score: 'B', label: '中リスク', color: 'blue' },
-      exchange: { score: 'B+', label: '中リスク', color: 'blue' },
-      groundlease: { score: 'C', label: '要検討', color: 'orange' },
-      other: { score: 'C', label: '要検討', color: 'orange' }
-    };
-    return scores[proposal.kind as string] || { score: 'B', label: '中リスク', color: 'blue' };
+    if (metrics.overallScore >= 85) return { score: 'A', label: '低リスク', color: 'green' } as const;
+    if (metrics.overallScore >= 70) return { score: 'B', label: '適正リスク', color: 'blue' } as const;
+    if (metrics.overallScore >= 55) return { score: 'C', label: '注意要', color: 'orange' } as const;
+    return { score: 'D', label: '要精査', color: 'orange' } as const;
   };
 
   const riskInfo = getRiskScore();
@@ -181,27 +154,27 @@ const ProposalDetailView: React.FC<ProposalDetailViewProps> = ({ proposal, onBac
             icon={<DollarSign className="w-6 h-6" />}
             label="NPV (10年)"
             value={`¥${formatValue(calculateNPV())}`}
-            trend="市場平均比 +15%"
+            trend={metrics.highlights[0] ?? '10年想定キャッシュフロー'}
             color="green"
           />
           <KPICard 
             icon={<TrendingUp className="w-6 h-6" />}
-            label="IRR"
+            label="リターン指標"
             value={calculateIRR()}
-            trend="期待収益率"
+            trend={`リターンスコア ${metrics.returnScore}点`}
             color="blue"
           />
           <KPICard 
             icon={<Calendar className="w-6 h-6" />}
             label="回収期間"
             value={calculatePayback()}
-            trend="投資回収"
+            trend={metrics.paybackYears !== undefined ? '投資回収目安' : 'キャッシュインまでの期間'}
             color="purple"
           />
           <KPICard 
             icon={<Shield className="w-6 h-6" />}
-            label="リスクスコア"
-            value={riskInfo.score}
+            label="リスク評価"
+            value={`${riskInfo.score} / ${metrics.overallScore}点`}
             trend={riskInfo.label}
             color={riskInfo.color as 'blue' | 'green' | 'purple' | 'orange'}
           />
@@ -251,6 +224,16 @@ const ProposalDetailView: React.FC<ProposalDetailViewProps> = ({ proposal, onBac
                         {proposal.kind === 'groundlease' && '土地を保有しながら安定収入を得られる借地提案です。'}
                         {proposal.kind === 'other' && '特殊な活用方法による収益最大化の提案です。'}
                       </p>
+                      {metrics.highlights.length > 0 && (
+                        <ul className="mt-3 space-y-1 text-xs sm:text-sm text-blue-800">
+                          {metrics.highlights.slice(0, 3).map((highlight, index) => (
+                            <li key={index} className="flex items-start">
+                              <span className="mt-1 mr-2 block w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0"></span>
+                              <span>{highlight}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -278,15 +261,15 @@ const ProposalDetailView: React.FC<ProposalDetailViewProps> = ({ proposal, onBac
                     <div className="space-y-3">
                       <div className="flex justify-between items-center py-2 border-b">
                         <span className="text-sm text-gray-600">5年NPV</span>
-                        <span className="font-semibold">¥{formatValue(calculateNPV() * 0.6)}</span>
+                        <span className="font-semibold">¥{formatValue(metrics.npv * 0.6)}</span>
                       </div>
                       <div className="flex justify-between items-center py-2 border-b">
                         <span className="text-sm text-gray-600">10年NPV</span>
-                        <span className="font-semibold">¥{formatValue(calculateNPV())}</span>
+                        <span className="font-semibold">¥{formatValue(metrics.npv)}</span>
                       </div>
                       <div className="flex justify-between items-center py-2 border-b">
                         <span className="text-sm text-gray-600">20年NPV</span>
-                        <span className="font-semibold">¥{formatValue(calculateNPV() * 1.5)}</span>
+                        <span className="font-semibold">¥{formatValue(metrics.npv * 1.5)}</span>
                       </div>
                       <div className="flex justify-between items-center py-2">
                         <span className="text-sm text-gray-600">実質利回り</span>
@@ -298,24 +281,24 @@ const ProposalDetailView: React.FC<ProposalDetailViewProps> = ({ proposal, onBac
                   <div className="bg-gray-50 rounded-lg p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">コスト内訳</h3>
                     <div className="space-y-3">
-                      {proposal.costs && (
+                      {saleCosts && (
                         <>
-                          {proposal.costs.broker && (
+                          {saleCosts.broker && (
                             <div className="flex justify-between items-center py-2 border-b">
                               <span className="text-sm text-gray-600">仲介手数料</span>
-                              <span className="font-semibold">¥{formatValue(proposal.costs.broker)}</span>
+                              <span className="font-semibold">¥{formatValue(saleCosts.broker)}</span>
                             </div>
                           )}
-                          {proposal.costs.taxes && (
+                          {saleCosts.taxes && (
                             <div className="flex justify-between items-center py-2 border-b">
                               <span className="text-sm text-gray-600">税金</span>
-                              <span className="font-semibold">¥{formatValue(proposal.costs.taxes)}</span>
+                              <span className="font-semibold">¥{formatValue(saleCosts.taxes)}</span>
                             </div>
                           )}
-                          {proposal.costs.others && (
+                          {saleCosts.others && (
                             <div className="flex justify-between items-center py-2">
                               <span className="text-sm text-gray-600">その他費用</span>
-                              <span className="font-semibold">¥{formatValue(proposal.costs.others)}</span>
+                              <span className="font-semibold">¥{formatValue(saleCosts.others)}</span>
                             </div>
                           )}
                         </>

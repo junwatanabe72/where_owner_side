@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Eye, DollarSign, FileText } from 'lucide-react';
-import { Proposal } from '../../../types';
+import { Asset, Proposal } from '../../../types';
 import {
   getKindLabel,
   getBadgeColor,
   formatProposalPrice,
-  calculateNPV,
+  calculateProposalMetrics,
   formatDate
 } from '../../../utils';
 import ProposalDetailView from '../../ProposalDetailView';
@@ -14,9 +14,10 @@ import ProposalHtmlModal from '../ProposalHtmlModal';
 
 interface ProposalsTabProps {
   proposals: Proposal[];
+  asset: Asset;
 }
 
-const ProposalsTab: React.FC<ProposalsTabProps> = ({ proposals }) => {
+const ProposalsTab: React.FC<ProposalsTabProps> = ({ proposals, asset }) => {
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
   const [showDetail, setShowDetail] = useState(false);
   const [isHtmlModalOpen, setIsHtmlModalOpen] = useState(false);
@@ -60,6 +61,7 @@ const ProposalsTab: React.FC<ProposalsTabProps> = ({ proposals }) => {
       <>
         <ProposalDetailView
           proposal={selectedProposal}
+          asset={asset}
           onBack={() => {
             setShowDetail(false);
             setSelectedProposal(null);
@@ -83,6 +85,7 @@ const ProposalsTab: React.FC<ProposalsTabProps> = ({ proposals }) => {
     );
     return (
       <ProposalComparison
+        asset={asset}
         proposals={selected as any}
         onClose={() => {
           setShowComparison(false);
@@ -133,6 +136,9 @@ const ProposalsTab: React.FC<ProposalsTabProps> = ({ proposals }) => {
                   NPV(10年)
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  総合スコア
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   操作
                 </th>
               </tr>
@@ -161,17 +167,37 @@ const ProposalsTab: React.FC<ProposalsTabProps> = ({ proposals }) => {
                       {formatDate(proposal.created_at)}
                     </div>
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm font-semibold">
-                      {formatProposalPrice(proposal)}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center">
-                      <DollarSign className="w-4 h-4 text-green-500 mr-1" />
-                      <span>¥{calculateNPV(proposal).toLocaleString('ja-JP')}</span>
-                    </div>
-                  </td>
+                  {(() => {
+                    const metrics = calculateProposalMetrics(proposal, asset);
+                    return (
+                      <>
+                        <td className="px-6 py-4">
+                          <div className="text-sm font-semibold">
+                            {formatProposalPrice(proposal)}
+                          </div>
+                          {metrics.highlights[0] && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              {metrics.highlights[0]}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center">
+                            <DollarSign className="w-4 h-4 text-green-500 mr-1" />
+                            <span>¥{metrics.npv.toLocaleString('ja-JP')}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm font-semibold text-gray-900">
+                            {metrics.overallScore}点
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            収益{metrics.returnScore} / 安定{metrics.stabilityScore}
+                          </div>
+                        </td>
+                      </>
+                    );
+                  })()}
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
                       <button

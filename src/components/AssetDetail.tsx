@@ -1,12 +1,26 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, ChevronRight, Bell, Menu, FileText, Download } from 'lucide-react';
+import {
+  ArrowLeft,
+  ChevronRight,
+  Bell,
+  Menu,
+  FileText,
+  Download,
+  Map as MapIcon,
+  Building2 as BuildingIcon,
+  Layers,
+  Image as ImageIcon,
+  Eye,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PrivacyLevel } from '../types';
 import { estimateByUnitPrices } from '../utils';
 import useAssetStore from '../store/assetStore';
 import AssetSidebar from './features/assetDetail/AssetSidebar';
 import ProposalsTab from './features/assetDetail/ProposalsTab';
-import RegistryTab from './features/assetDetail/RegistryTab';
+import RegistryTab, { registryParcels } from './features/assetDetail/RegistryTab';
+import type { Attachment } from './features/assetDetail/RegistryTab';
+import NeighborMonitorTab from './features/assetDetail/NeighborMonitorTab';
 
 interface AssetDetailProps {
   assetId: number;
@@ -46,7 +60,7 @@ const AssetDetail: React.FC<AssetDetailProps> = ({ assetId, onBack, privacyLevel
   const tabs = [
     { id: 'registry', label: '登記概要' },
     { id: 'valuation', label: '評価' },
-    { id: 'legal', label: '法務' },
+    { id: 'neighbors', label: '隣接土地監視' },
     { id: 'documents', label: '図面・資料' },
     { id: 'history', label: '履歴' },
     { id: 'proposals', label: 'プロの提案' },
@@ -156,12 +170,12 @@ const AssetDetail: React.FC<AssetDetailProps> = ({ assetId, onBack, privacyLevel
               <ValuationTab asset={asset} formatCurrency={formatCurrency} />
             )}
 
-            {activeTab === 'legal' && (
-              <LegalTab asset={asset} />
-            )}
-
             {activeTab === 'registry' && (
               <RegistryTab />
+            )}
+
+            {activeTab === 'neighbors' && (
+              <NeighborMonitorTab assetId={assetId} />
             )}
 
             {activeTab === 'documents' && (
@@ -173,7 +187,7 @@ const AssetDetail: React.FC<AssetDetailProps> = ({ assetId, onBack, privacyLevel
             )}
 
             {activeTab === 'proposals' && (
-              <ProposalsTab proposals={proposals} />
+              <ProposalsTab asset={asset} proposals={proposals} />
             )}
           </div>
         </div>
@@ -181,7 +195,7 @@ const AssetDetail: React.FC<AssetDetailProps> = ({ assetId, onBack, privacyLevel
 
       {/* Notification */}
       <AnimatePresence>
-        {showNotification && (
+        {!showNotification && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -218,6 +232,12 @@ const ValuationTab: React.FC<{ asset: any; formatCurrency: (value: number) => st
   const rosenkaSeries = multipliers.map((m, i) => ({ year: currentYear - (4 - i), psm: Math.round(baseRosenka * m) }));
   const kojiSeries = multipliers.map((m, i) => ({ year: currentYear - (4 - i), psm: Math.round(baseKoji * m) }));
 
+  const totalLandArea = useMemo(
+    () => registryParcels.reduce((sum, parcel) => sum + parcel.areaSqm, 0),
+    []
+  );
+  const evaluationArea = totalLandArea > 0 ? totalLandArea : asset.area;
+
   const [selectedRYear, setSelectedRYear] = useState<number>(rosenkaSeries[4].year);
   const [selectedKYear, setSelectedKYear] = useState<number>(kojiSeries[4].year);
 
@@ -231,7 +251,7 @@ const ValuationTab: React.FC<{ asset: any; formatCurrency: (value: number) => st
 
   const result = useMemo(() => {
     return estimateByUnitPrices({
-      areaSqm: asset.area,
+      areaSqm: evaluationArea,
       rosenkaPsm: selectedRosenkaPsm,
       kojiPsm: selectedKojiPsm,
       rosenkaToMarket,
@@ -239,7 +259,7 @@ const ValuationTab: React.FC<{ asset: any; formatCurrency: (value: number) => st
       weights: { rosenka: wR, koji: 1 - wR },
       sensitivity: sens,
     });
-  }, [asset.area, selectedRosenkaPsm, selectedKojiPsm, rosenkaToMarket, kojiToMarket, wR, sens]);
+  }, [evaluationArea, selectedRosenkaPsm, selectedKojiPsm, rosenkaToMarket, kojiToMarket, wR, sens]);
 
   return (
     <div className="space-y-6">
@@ -262,7 +282,7 @@ const ValuationTab: React.FC<{ asset: any; formatCurrency: (value: number) => st
         <div className="mt-3 text-xs text-gray-600 flex flex-wrap gap-3">
           {result.breakdown?.rosenka !== undefined && <span className="px-2 py-1 bg-white rounded border">路線価寄与: {formatCurrency(Math.round(result.breakdown.rosenka))}</span>}
           {result.breakdown?.koji !== undefined && <span className="px-2 py-1 bg-white rounded border">公示価格寄与: {formatCurrency(Math.round(result.breakdown.koji))}</span>}
-          <span className="px-2 py-1 bg-white rounded border">面積: {asset.area.toLocaleString()}㎡</span>
+          <span className="px-2 py-1 bg-white rounded border">面積: {evaluationArea.toLocaleString()}㎡</span>
         </div>
       </div>
 
@@ -332,39 +352,261 @@ const ValuationTab: React.FC<{ asset: any; formatCurrency: (value: number) => st
   );
 };
 
-const LegalTab: React.FC<{ asset: any }> = ({ asset }) => (
-  <div className="space-y-6">
-    <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-medium mb-4">法務情報</h3>
-      <div className="space-y-2 text-sm">
-        <div>所有者: {asset.owner}</div>
-        <div>地目: 宅地</div>
-        <div>登記日: {(asset as any).registrationDate || '2020-01-01'}</div>
-      </div>
-    </div>
-  </div>
-);
+const TSUBO_PER_SQM = 1 / 3.305785;
 
-const DocumentsTab: React.FC = () => (
-  <div className="space-y-4">
-    <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-medium mb-4">図面・資料</h3>
-      <div className="space-y-3">
-        {['測量図.pdf', '登記簿謄本.pdf', '建築図面.pdf'].map((doc) => (
-          <div key={doc} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
-            <div className="flex items-center space-x-3">
-              <FileText className="w-5 h-5 text-gray-400" />
-              <span className="text-sm">{doc}</span>
-            </div>
-            <button className="p-1 hover:bg-gray-200 rounded">
-              <Download className="w-4 h-4 text-gray-600" />
-            </button>
+const DocumentsTab: React.FC = () => {
+  const [activeParcelId, setActiveParcelId] = useState(() => registryParcels[0]?.id ?? '');
+
+  const activeParcel = useMemo(() => {
+    if (!registryParcels.length) {
+      return undefined;
+    }
+    return registryParcels.find((parcel) => parcel.id === activeParcelId) ?? registryParcels[0];
+  }, [activeParcelId]);
+
+  const parcelAttachments = activeParcel?.attachments ?? [];
+
+  const buildingAttachmentRows = useMemo(() => {
+    if (!activeParcel?.buildings?.length) {
+      return [] as { buildingId: string; buildingName: string; attachment: Attachment }[];
+    }
+
+    return activeParcel.buildings.flatMap((building) =>
+      (building.attachments ?? []).map((attachment) => ({
+        buildingId: building.id,
+        buildingName: building.name,
+        attachment,
+      }))
+    );
+  }, [activeParcel]);
+
+  const renderAttachmentIcon = (type: Attachment['type']) => {
+    switch (type) {
+      case 'cad':
+        return <Layers className="w-4 h-4 text-indigo-500" />;
+      case 'image':
+        return <ImageIcon className="w-4 h-4 text-blue-500" />;
+      default:
+        return <FileText className="w-4 h-4 text-amber-500" />;
+    }
+  };
+
+  const formatArea = (areaSqm: number) => {
+    const tsubo = areaSqm * TSUBO_PER_SQM;
+    return `${areaSqm.toLocaleString()}㎡ / ${tsubo.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}坪`;
+  };
+
+  const attachmentTypeLabel: Record<Attachment['type'], string> = {
+    pdf: 'PDF',
+    image: '画像',
+    cad: 'CAD',
+  };
+
+  const handleAction = (action: 'view' | 'download', attachment: Attachment) => {
+    // TODO: Integrate with viewer/downloader when backend endpoints are ready
+    console.info(`[DocumentsTab] ${action} attachment`, attachment);
+  };
+
+  return (
+    <div className="space-y-6">
+      <section className="bg-white rounded-xl border shadow-sm p-6">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
+            <MapIcon className="w-4 h-4 text-emerald-500" />
+            土地ごとの資料
           </div>
-        ))}
-      </div>
+          <div className="flex flex-wrap gap-2">
+            {registryParcels.map((parcel) => {
+              const isActive = activeParcel?.id === parcel.id;
+              return (
+                <button
+                  key={parcel.id}
+                  onClick={() => setActiveParcelId(parcel.id)}
+                  className={`px-3 py-2 text-xs md:text-sm font-medium rounded-lg border transition ${
+                    isActive
+                      ? 'border-blue-500 bg-blue-50 text-blue-600 shadow-sm'
+                      : 'border-slate-200 text-slate-600 hover:border-blue-300 hover:text-blue-600'
+                  }`}
+                >
+                  {parcel.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {activeParcel ? (
+          <div className="mt-6 space-y-6">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600">
+              <div className="text-sm font-semibold text-slate-900">{activeParcel.label}</div>
+              <div className="mt-1">{activeParcel.address}</div>
+              <div className="mt-1">登記地積: {formatArea(activeParcel.areaSqm)} / 区分: {activeParcel.landCategory}</div>
+              <div className="mt-1 text-[11px] text-slate-500">
+                データソース: {activeParcel.metadata.dataSource}（同期: {activeParcel.metadata.lastSynced}）
+              </div>
+            </div>
+
+            <div className="overflow-x-auto rounded-lg border border-slate-200">
+              <table className="min-w-full divide-y divide-slate-200 text-sm">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                      資料名
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                      種別
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                      更新日
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                      備考
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
+                      操作
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {parcelAttachments.length > 0 ? (
+                    parcelAttachments.map((attachment) => (
+                      <tr key={attachment.id} className="hover:bg-slate-50">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100">
+                              {renderAttachmentIcon(attachment.type)}
+                            </span>
+                            <span className="font-medium text-slate-800">{attachment.name}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-slate-600">{attachmentTypeLabel[attachment.type]}</td>
+                        <td className="px-4 py-3 text-slate-600">{attachment.updated}</td>
+                        <td className="px-4 py-3 text-slate-500">{attachment.note ?? '—'}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleAction('view', attachment)}
+                              className="inline-flex items-center gap-1 rounded-md border border-transparent bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-100"
+                            >
+                              <Eye className="h-4 w-4" />
+                              <span>閲覧</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleAction('download', attachment)}
+                              className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-blue-300 hover:text-blue-600"
+                            >
+                              <Download className="h-4 w-4" />
+                              <span>ダウンロード</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-6 text-center text-sm text-slate-500">
+                        この土地に登録された図面・資料はありません。
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-6 rounded-lg border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
+            表示できる土地がありません。
+          </div>
+        )}
+      </section>
+
+      <section className="bg-white rounded-xl border shadow-sm p-6">
+        <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
+          <BuildingIcon className="w-4 h-4 text-blue-500" />
+          建物ごとの資料
+        </div>
+
+        <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200">
+          <table className="min-w-full divide-y divide-slate-200 text-sm">
+            <thead className="bg-slate-50">
+              <tr>
+                <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  建物
+                </th>
+                <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  資料名
+                </th>
+                <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  種別
+                </th>
+                <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  更新日
+                </th>
+                <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  備考
+                </th>
+                <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  操作
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 bg-white">
+              {buildingAttachmentRows.length > 0 ? (
+                buildingAttachmentRows.map(({ buildingId, buildingName, attachment }) => (
+                  <tr key={`${buildingId}-${attachment.id}`} className="hover:bg-slate-50">
+                    <td className="px-4 py-3 text-slate-700">{buildingName}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100">
+                          {renderAttachmentIcon(attachment.type)}
+                        </span>
+                        <span className="font-medium text-slate-800">{attachment.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">{attachmentTypeLabel[attachment.type]}</td>
+                    <td className="px-4 py-3 text-slate-600">{attachment.updated}</td>
+                    <td className="px-4 py-3 text-slate-500">{attachment.note ?? '—'}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleAction('view', attachment)}
+                          className="inline-flex items-center gap-1 rounded-md border border-transparent bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-100"
+                        >
+                          <Eye className="h-4 w-4" />
+                          <span>閲覧</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAction('download', attachment)}
+                          className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-blue-300 hover:text-blue-600"
+                        >
+                          <Download className="h-4 w-4" />
+                          <span>ダウンロード</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={6} className="px-4 py-6 text-center text-sm text-slate-500">
+                    この土地に関連する建物の図面・資料はありません。
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
-  </div>
-);
+  );
+};
 
 const HistoryTab: React.FC = () => (
   <div className="space-y-4">

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, useMemo } from "react";
 import mapboxgl from "mapbox-gl";
 import MapboxLanguage from "@mapbox/mapbox-gl-language";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -6,21 +6,50 @@ import { Box } from "@mui/material";
 import PropertiesMarker from "./marker";
 import { customLayers, mapboxStyleURL, tokyoStationGeo, osakaStationGeo } from "./constants";
 import LayerClickHandler from "./layerClickHandler";
+import type { LandProperty, MapLayers } from "../types";
+
+const markerPrototype = mapboxgl.Marker.prototype as {
+  _evaluateOpacity?: (map: mapboxgl.Map) => void;
+  __patchedOpacityGuard?: boolean;
+};
+
+if (markerPrototype && !markerPrototype.__patchedOpacityGuard && typeof markerPrototype._evaluateOpacity === "function") {
+  const originalEvaluateOpacity = markerPrototype._evaluateOpacity;
+  markerPrototype._evaluateOpacity = function patchedEvaluateOpacity(this: mapboxgl.Marker, map: mapboxgl.Map) {
+    try {
+      return originalEvaluateOpacity.call(this, map);
+    } catch (error) {
+      // Mapbox GL JS v3.0+ has known cases where fog state is unset; fall back to visible markers.
+      const element = this.getElement();
+      if (element) {
+        element.style.opacity = "1";
+        element.style.pointerEvents = "auto";
+      }
+      return undefined;
+    }
+  };
+  markerPrototype.__patchedOpacityGuard = true;
+}
 
 interface Props {
   currentStore: LandProperty[];
   isSample: boolean;
   privacyLevel?: "最小公開" | "限定公開" | "フル公開";
   mapMode?: "map" | "sat";
-  mapLayers?: {
-    youto: boolean;
-    koudo: boolean;
-    bouka: boolean;
-    height: boolean;
-  };
+  mapLayers?: Partial<MapLayers>;
+  initialCenter?: [number, number];
+  onMapReady?: (map: mapboxgl.Map) => void;
 }
 
-const Map: React.FC<Props> = ({ currentStore, isSample, privacyLevel = "限定公開", mapMode = "sat", mapLayers }) => {
+const Map: React.FC<Props> = ({
+  currentStore,
+  isSample,
+  privacyLevel = "限定公開",
+  mapMode = "sat",
+  mapLayers,
+  initialCenter,
+  onMapReady,
+}) => {
   const mapContainer = useRef(null);
   const [map, setMap] = useState<mapboxgl.Map>();
   const [pitch] = useState<number>(0);
@@ -52,17 +81,23 @@ const Map: React.FC<Props> = ({ currentStore, isSample, privacyLevel = "限定�
       }
     };
   }, []);
-  const targetGeo =
-    currentStore && currentStore.length > 0
-      ? [
-          currentStore[0].nearStation[0].geometry.lng,
-          currentStore[0].nearStation[0].geometry.lat,
-        ]
-      : isSample
-      ? osakaStationGeo
-      : tokyoStationGeo;
+  const targetGeo = useMemo<[number, number]>(() => {
+    if (initialCenter) {
+      return initialCenter;
+    }
 
-useEffect(() => {
+    if (currentStore && currentStore.length > 0) {
+      const firstStation = currentStore[0]?.nearStation?.[0];
+      if (firstStation?.geometry) {
+        return [firstStation.geometry.lng, firstStation.geometry.lat] as [number, number];
+      }
+    }
+
+    const fallbackCenter = (isSample ? osakaStationGeo : tokyoStationGeo) as [number, number];
+    return [fallbackCenter[0], fallbackCenter[1]] as [number, number];
+  }, [initialCenter, currentStore, isSample]);
+
+  useEffect(() => {
     // 既にマップが存在する場合は何もしない
     if (map) return;
     
@@ -92,6 +127,50 @@ useEffect(() => {
       console.error("Error creating map:", error);
     }
   }, []); // 初回のみ実行
+
+  useEffect(() => {
+    if (!map || !onMapReady) {
+      return;
+    }
+
+    if (map.isStyleLoaded()) {
+      onMapReady(map);
+      return;
+    }
+
+    const handleLoad = () => {
+      onMapReady(map);
+    };
+
+    map.once("load", handleLoad);
+    return () => {
+      map.off("load", handleLoad);
+    };
+  }, [map, onMapReady]);
+
+  useEffect(() => {
+    if (!map || !initialCenter) {
+      return;
+    }
+
+    const applyCenter = () => {
+      const currentCenter = map.getCenter();
+      if (currentCenter.lng === initialCenter[0] && currentCenter.lat === initialCenter[1]) {
+        return;
+      }
+      map.setCenter(initialCenter);
+    };
+
+    if (map.isStyleLoaded()) {
+      applyCenter();
+      return;
+    }
+
+    map.once("load", applyCenter);
+    return () => {
+      map.off("load", applyCenter);
+    };
+  }, [map, initialCenter]);
 
   const applySatelliteForMode = async () => {
     if (!map) return;
@@ -497,8 +576,8 @@ useEffect(() => {
       const layerId = layerCategory as keyof typeof customLayers;
       const layers = customLayers[layerId];
       // 衛星表示中は建物(height)は常に非表示に固定
-      const layerValue = (mapLayers as any)[layerId];
-      const shouldShow = mapMode === 'sat' && layerId === 'height' ? false : layerValue;
+      const layerValue = mapLayers[layerId as keyof MapLayers];
+      const shouldShow = mapMode === 'sat' && layerId === 'height' ? false : Boolean(layerValue);
       
       console.log(`Category ${layerId}: value=${layerValue}, shouldShow=${shouldShow}`);
       

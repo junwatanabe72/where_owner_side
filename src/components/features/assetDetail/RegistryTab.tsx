@@ -28,7 +28,7 @@ type EncumbranceRecord = {
   status?: string;
 };
 
-type Attachment = {
+export type Attachment = {
   id: string;
   name: string;
   type: 'pdf' | 'image' | 'cad';
@@ -51,10 +51,11 @@ type BuildingOption = {
   id: string;
   name: string;
   description?: string;
+  attachments?: Attachment[];
   registry: BuildingRegistrySummary;
 };
 
-type ParcelData = {
+export type ParcelData = {
   id: string;
   label: string;
   address: string;
@@ -76,7 +77,7 @@ type ParcelData = {
   buildings?: BuildingOption[];
 };
 
-const registryParcels: ParcelData[] = [
+export const registryParcels: ParcelData[] = [
   {
     id: 'marunouchi-1-1',
     label: '丸の内一丁目1番1',
@@ -146,6 +147,28 @@ const registryParcels: ParcelData[] = [
         id: 'main-tower',
         name: '本館（丸の内シナジータワー）',
         description: '鉄骨造一部鉄骨鉄筋コンクリート造 / 地上24階 地下2階',
+        attachments: [
+          {
+            id: 'main-tower-blueprint',
+            name: '建築確認図書（主要構造図）',
+            type: 'pdf',
+            updated: '2024-05-18',
+            note: '構造安全性検証済み（改修反映）',
+          },
+          {
+            id: 'main-tower-floorplans',
+            name: 'フロアプラン（B2F〜24F）',
+            type: 'cad',
+            updated: '2025-03-07',
+            note: 'DWG / PDF 同梱',
+          },
+          {
+            id: 'main-tower-exterior',
+            name: '外観写真セット（南・東面）',
+            type: 'image',
+            updated: '2025-06-11',
+          },
+        ],
         registry: {
           buildingNumber: '千代田区丸の内一丁目1番1',
           structure: '鉄骨造一部鉄骨鉄筋コンクリート造塔屋付地下2階建',
@@ -179,6 +202,21 @@ const registryParcels: ParcelData[] = [
         id: 'annex-lab',
         name: '附属棟（クリエイティブラボ）',
         description: '鉄骨造2階建 / インキュベーション施設',
+        attachments: [
+          {
+            id: 'annex-lab-layout',
+            name: 'レイアウト図（2024改修後）',
+            type: 'pdf',
+            updated: '2024-07-15',
+          },
+          {
+            id: 'annex-lab-equip',
+            name: '設備点検報告書',
+            type: 'pdf',
+            updated: '2025-04-30',
+            note: '空調・音響設備更新を反映',
+          },
+        ],
         registry: {
           buildingNumber: '千代田区丸の内一丁目1番1の附属建物',
           structure: '鉄骨造陸屋根2階建',
@@ -252,6 +290,20 @@ const registryParcels: ParcelData[] = [
         id: 'annex-parking',
         name: '附属棟（機械式駐車場棟）',
         description: '鉄骨造3層 / 車両収容台数 48台',
+        attachments: [
+          {
+            id: 'parking-maintenance',
+            name: '設備保守記録（2025年度）',
+            type: 'pdf',
+            updated: '2025-08-01',
+          },
+          {
+            id: 'parking-photos',
+            name: '機械設備写真（更新後）',
+            type: 'image',
+            updated: '2025-08-05',
+          },
+        ],
         registry: {
           buildingNumber: '千代田区丸の内一丁目1番2の附属建物',
           structure: '鉄骨造合成デッキ3階建',

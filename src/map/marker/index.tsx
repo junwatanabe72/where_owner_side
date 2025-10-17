@@ -29,6 +29,29 @@ const PropertiesMarker: React.FC<Props> = ({ currentStore, map }) => {
   const [markers, setMarkers] = useState<ClickableMarker[]>([]);
   const [isOpen, setDialog] = useState(false);
   const [targetProperty, setTargetProperty] = useState<LandProperty>();
+  const [isMapReady, setIsMapReady] = useState(false);
+
+  useEffect(() => {
+    if (!map) {
+      setIsMapReady(false);
+      return;
+    }
+
+    if (map.isStyleLoaded()) {
+      setIsMapReady(true);
+      return;
+    }
+
+    setIsMapReady(false);
+    const handleLoad = () => {
+      setIsMapReady(true);
+    };
+
+    map.once("load", handleLoad);
+    return () => {
+      map.off("load", handleLoad);
+    };
+  }, [map]);
 
   const handleChange = (value: boolean) => {
     setDialog(value);
@@ -111,9 +134,10 @@ const PropertiesMarker: React.FC<Props> = ({ currentStore, map }) => {
   };
 
   useEffect(() => {
-    if (!map || map === null) {
+    if (!map || map === null || !isMapReady) {
       return;
     }
+
     if (markers.length) {
       markers.forEach((marker) => marker.remove());
       setMarkers([]);
@@ -140,7 +164,14 @@ const PropertiesMarker: React.FC<Props> = ({ currentStore, map }) => {
     map.on("mouseleave", "places", () => {
       map.getCanvas().style.cursor = "";
     });
-  }, [currentStore, map]);
+  }, [currentStore, isMapReady, map]);
+
+  useEffect(() => {
+    return () => {
+      if (!markers.length) return;
+      markers.forEach((marker) => marker.remove());
+    };
+  }, [markers]);
 
   return (
     <>

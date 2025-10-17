@@ -1,10 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { Proposal } from '../store/assetStore';
-import { BarChart, ArrowLeft, CheckSquare, XSquare, X, Eye, TrendingUp, Calendar, DollarSign } from 'lucide-react';
+import { Asset, Proposal, ProposalMetrics } from '../types';
+import { BarChart, ArrowLeft, CheckSquare, XSquare, X, Eye, TrendingUp, DollarSign, Gauge } from 'lucide-react';
+import { calculateProposalMetrics, formatProposalPrice, getKindLabel, getBadgeColor } from '../utils';
 import ProposalDetailView from './ProposalDetailView';
 
 interface ProposalComparisonProps {
   proposals: Proposal[];
+  asset?: Asset;
   onClose: () => void;
 }
 
@@ -13,34 +15,9 @@ const ProposalTable: React.FC<{
   compareIds: string[];
   onCompare: (id: string) => void;
   onViewDetail: (proposal: Proposal) => void;
-}> = ({ proposals, compareIds, onCompare, onViewDetail }) => {
-  const getBadgeStyle = (kind: Proposal['kind']) => {
-    switch (kind) {
-      case 'sale': return 'bg-red-100 text-red-700 border-red-300';
-      case 'lease': return 'bg-purple-100 text-purple-700 border-purple-300';
-      case 'exchange': return 'bg-blue-100 text-blue-700 border-blue-300';
-      case 'groundlease': return 'bg-green-100 text-green-700 border-green-300';
-      default: return 'bg-gray-100 text-gray-700 border-gray-300';
-    }
-  };
-
-  const getKindLabel = (kind: Proposal['kind']) => {
-    const labels = {
-      sale: '売却',
-      lease: '賃貸',
-      exchange: '等価交換',
-      groundlease: '借地',
-      other: 'その他'
-    };
-    return labels[kind] || kind;
-  };
-
-  const formatPrice = (proposal: Proposal) => {
-    if (proposal.kind === 'sale' && proposal.price) return `¥${proposal.price.toLocaleString('ja-JP')}`;
-    if (proposal.kind === 'lease' && proposal.monthly_rent) return `¥${proposal.monthly_rent.toLocaleString('ja-JP')}/月`;
-    if (proposal.kind === 'groundlease' && proposal.annual_ground_rent) return `¥${proposal.annual_ground_rent.toLocaleString('ja-JP')}/年`;
-    return '-';
-  };
+  metricsMap: Map<string | number, ProposalMetrics>;
+  asset?: Asset;
+}> = ({ proposals, compareIds, onCompare, onViewDetail, metricsMap, asset }) => {
 
   const formatTerm = (proposal: Proposal) => {
     if ((proposal.kind === 'lease' || proposal.kind === 'groundlease' || proposal.kind === 'other') && proposal.term_years) {
@@ -49,26 +26,6 @@ const ProposalTable: React.FC<{
     if (proposal.kind === 'exchange' && proposal.completion_ym) return proposal.completion_ym;
     if (proposal.kind === 'sale' && proposal.days_to_close) return `${proposal.days_to_close}日`;
     return '-';
-  };
-
-  const calculateNPV = (proposal: Proposal) => {
-    // 簡易的なNPV計算
-    if (proposal.kind === 'sale' && proposal.price) return Math.round(proposal.price * 0.85);
-    if (proposal.kind === 'lease' && proposal.monthly_rent && proposal.term_years) {
-      return Math.round(proposal.monthly_rent * 12 * proposal.term_years * 0.7);
-    }
-    if (proposal.kind === 'groundlease' && proposal.annual_ground_rent && proposal.term_years) {
-      return Math.round(proposal.annual_ground_rent * proposal.term_years * 0.75);
-    }
-    return 0;
-  };
-
-  const calculateIRR = (proposal: Proposal) => {
-    if (proposal.kind === 'sale') return '即時';
-    if (proposal.kind === 'lease') return '8.5%';
-    if (proposal.kind === 'exchange') return '12.3%';
-    if (proposal.kind === 'groundlease') return '6.7%';
-    return '7.2%';
   };
 
   return (
@@ -98,7 +55,10 @@ const ProposalTable: React.FC<{
               NPV(10年)
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              IRR
+              リターン指標
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              総合スコア
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               操作
@@ -107,14 +67,25 @@ const ProposalTable: React.FC<{
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {proposals.map((proposal) => {
-            const isComparing = compareIds.includes(proposal.id);
+            const idStr = String(proposal.id);
+            const isComparing = compareIds.includes(idStr);
+            const metrics = metricsMap.get(proposal.id) ?? calculateProposalMetrics(proposal, asset);
+            const yieldDisplay = (() => {
+              if (proposal.kind === 'sale') {
+                return metrics.highlights.find((h) => h.includes('ディスカウント')) ?? '―';
+              }
+              if (metrics.netYield !== undefined) {
+                return `${(metrics.netYield * 100).toFixed(2)}%`;
+              }
+              return '―';
+            })();
             return (
               <tr key={proposal.id} className={`hover:bg-gray-50 ${isComparing ? 'bg-blue-50' : ''}`}>
                 <td className="px-3 py-4 whitespace-nowrap sticky left-0 bg-inherit z-10">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      onCompare(proposal.id);
+                    onCompare(idStr);
                     }}
                     className={`p-1 rounded ${isComparing ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
                   >
@@ -122,7 +93,7 @@ const ProposalTable: React.FC<{
                   </button>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 py-1 text-xs rounded-full font-medium border ${getBadgeStyle(proposal.kind)}`}>
+                  <span className={`px-2 py-1 text-xs rounded-full font-medium border ${getBadgeColor(proposal.kind)}`}>
                     {getKindLabel(proposal.kind)}
                   </span>
                 </td>
@@ -136,7 +107,10 @@ const ProposalTable: React.FC<{
                   <div className="text-sm text-gray-900 max-w-xs truncate">{proposal.summary}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-semibold text-gray-900">{formatPrice(proposal)}</div>
+                  <div className="text-sm font-semibold text-gray-900">{formatProposalPrice(proposal)}</div>
+                  {metrics.highlights[0] && (
+                    <div className="text-xs text-gray-500 mt-1">{metrics.highlights[0]}</div>
+                  )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900">{formatTerm(proposal)}</div>
@@ -144,14 +118,21 @@ const ProposalTable: React.FC<{
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center text-sm">
                     <DollarSign className="w-4 h-4 text-green-500 mr-1" />
-                    <span className="font-semibold">¥{calculateNPV(proposal).toLocaleString('ja-JP')}</span>
+                    <span className="font-semibold">¥{metrics.npv.toLocaleString('ja-JP')}</span>
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center text-sm">
                     <TrendingUp className="w-4 h-4 text-blue-500 mr-1" />
-                    <span className="font-semibold">{calculateIRR(proposal)}</span>
+                    <span className="font-semibold">{yieldDisplay}</span>
                   </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center text-sm">
+                    <Gauge className="w-4 h-4 text-indigo-500 mr-1" />
+                    <span className="font-semibold">{metrics.overallScore}点</span>
+                  </div>
+                  <div className="text-xs text-gray-500">安定 {metrics.stabilityScore} / 流動 {metrics.liquidityScore}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right">
                   <button
@@ -176,33 +157,44 @@ const ProposalTable: React.FC<{
   );
 }
 
-const ComparisonView: React.FC<{proposals: Proposal[], onBack: () => void}> = ({ proposals, onBack }) => {
+const ComparisonView: React.FC<{
+  proposals: Proposal[];
+  metricsMap: Map<string | number, ProposalMetrics>;
+  onBack: () => void;
+}> = ({ proposals, metricsMap, onBack }) => {
   const headers = ['指標', ...proposals.map(p => p.company)];
   
-  const formatValue = (value: any) => {
-    if (typeof value === 'number') return value.toLocaleString();
-    if (typeof value === 'boolean') return value ? 'はい' : 'いいえ';
-    return value || '-';
-  }
-
   const rows = [
-    { label: '種別', getValue: (p: Proposal) => p.kind },
+    { label: '種別', getValue: (p: Proposal) => getKindLabel(p.kind) },
     { label: '概要', getValue: (p: Proposal) => p.summary },
-    { label: '価格/賃料', getValue: (p: Proposal) => {
-      if (p.kind === 'sale') return `${formatValue(p.price)}円`;
-      if (p.kind === 'lease') return `${formatValue(p.monthly_rent)}円/月`;
-      if (p.kind === 'groundlease') return `${formatValue(p.annual_ground_rent)}円/年`;
-      return '-';
-    }},
-        { label: '期間', getValue: (p: Proposal) => {
-      if (p.kind === 'lease' || p.kind === 'groundlease' || p.kind === 'other') {
-        return `${p.term_years}年`;
-      }
-      if (p.kind === 'exchange') {
-        return `完了: ${p.completion_ym}`;
-      }
-      return '-';
-    } },
+    { label: '価格/賃料', getValue: (p: Proposal) => formatProposalPrice(p) },
+    {
+      label: '期間',
+      getValue: (p: Proposal) => {
+        if (p.kind === 'lease' || p.kind === 'groundlease' || p.kind === 'other') {
+          return p.term_years ? `${p.term_years}年` : '-';
+        }
+        if (p.kind === 'exchange') {
+          return p.completion_ym ? `完了: ${p.completion_ym}` : '-';
+        }
+        if (p.kind === 'sale') {
+          return p.days_to_close ? `${p.days_to_close}日` : '即時';
+        }
+        return '-';
+      },
+    },
+    {
+      label: 'NPV(10年)',
+      getValue: (p: Proposal) => `¥${(metricsMap.get(p.id)?.npv ?? 0).toLocaleString('ja-JP')}`,
+    },
+    {
+      label: '総合スコア',
+      getValue: (p: Proposal) => {
+        const metrics = metricsMap.get(p.id);
+        if (!metrics) return '-';
+        return `${metrics.overallScore}点 (収益${metrics.returnScore} / 安定${metrics.stabilityScore})`;
+      },
+    },
   ];
 
   return (
@@ -234,7 +226,7 @@ const ComparisonView: React.FC<{proposals: Proposal[], onBack: () => void}> = ({
   )
 }
 
-const ProposalComparison: React.FC<ProposalComparisonProps> = ({ proposals, onClose }) => {
+const ProposalComparison: React.FC<ProposalComparisonProps> = ({ proposals, asset, onClose }) => {
   const [activeTab, setActiveTab] = useState<Proposal['kind']>('sale');
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<'list' | 'compare' | 'detail'>('list');
@@ -258,7 +250,7 @@ const ProposalComparison: React.FC<ProposalComparisonProps> = ({ proposals, onCl
   }, [proposals, activeTab]);
 
   const comparisonProposals = useMemo(() => {
-    return proposals.filter(p => compareIds.includes(p.id));
+    return proposals.filter(p => compareIds.includes(String(p.id)));
   }, [proposals, compareIds]);
 
   const handleCompareToggle = (id: string) => {
@@ -277,16 +269,24 @@ const ProposalComparison: React.FC<ProposalComparisonProps> = ({ proposals, onCl
     setViewMode('list');
   }
 
+  const metricsMap = useMemo(() => {
+    const map = new Map<string | number, ProposalMetrics>();
+    proposals.forEach((p) => {
+      map.set(p.id, calculateProposalMetrics(p, asset));
+    });
+    return map;
+  }, [proposals, asset]);
+
   const renderContent = () => {
     if (viewMode === 'detail' && selectedProposal) {
       return (
         <div className="max-w-full">
-          <ProposalDetailView proposal={selectedProposal} onBack={handleBackToList} />
+          <ProposalDetailView proposal={selectedProposal} asset={asset} onBack={handleBackToList} />
         </div>
       );
     }
     if (viewMode === 'compare') {
-      return <ComparisonView proposals={comparisonProposals} onBack={() => setViewMode('list')} />;
+      return <ComparisonView proposals={comparisonProposals} metricsMap={metricsMap} onBack={() => setViewMode('list')} />;
     }
     return (
       <ProposalTable 
@@ -294,6 +294,8 @@ const ProposalComparison: React.FC<ProposalComparisonProps> = ({ proposals, onCl
         compareIds={compareIds}
         onCompare={handleCompareToggle}
         onViewDetail={handleViewDetail}
+        metricsMap={metricsMap}
+        asset={asset}
       />
     );
   }

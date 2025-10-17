@@ -5,7 +5,7 @@ import {
   getKindLabel,
   getBadgeColor,
   formatProposalPrice,
-  calculateNPV,
+  calculateProposalMetrics,
 } from '../../../utils';
 import { formatDate } from '../../../utils/formatters';
 import ProposalDetailView from '../../ProposalDetailView';
@@ -28,11 +28,12 @@ const ProposalSection: React.FC<ProposalSectionProps> = ({ asset, proposals }) =
     return (
       <ProposalDetailView
         proposal={selectedProposal}
+        asset={asset}
         onBack={() => {
           setShowDetail(false);
           setSelectedProposal(null);
         }}
-        onShowHtml={() => {}}
+        onShowHtml={selectedProposal.htmlContent ? () => {} : undefined}
       />
     );
   }
@@ -62,12 +63,17 @@ const ProposalSection: React.FC<ProposalSectionProps> = ({ asset, proposals }) =
                   NPV(10年)
                 </th>
                 <th className="px-2 py-2 text-left font-medium text-gray-500">
+                  総合スコア
+                </th>
+                <th className="px-2 py-2 text-left font-medium text-gray-500">
                   操作
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {proposals.map((proposal) => (
+              {proposals.map((proposal) => {
+                const metrics = calculateProposalMetrics(proposal, asset);
+                return (
                 <tr key={proposal.id} className="hover:bg-gray-50">
                   <td className="px-2 py-2 whitespace-nowrap">
                     <span
@@ -95,8 +101,16 @@ const ProposalSection: React.FC<ProposalSectionProps> = ({ asset, proposals }) =
                     <div className="flex items-center">
                       <DollarSign className="w-3 h-3 text-green-500 mr-1" />
                       <span>
-                        ¥{calculateNPV(proposal).toLocaleString('ja-JP')}
+                        ¥{metrics.npv.toLocaleString('ja-JP')}
                       </span>
+                    </div>
+                  </td>
+                  <td className="px-2 py-2">
+                    <div className="text-sm font-semibold text-gray-900">
+                      {metrics.overallScore}点
+                    </div>
+                    <div className="text-[10px] text-gray-500">
+                      収益{metrics.returnScore} / 安定{metrics.stabilityScore}
                     </div>
                   </td>
                   <td className="px-2 py-2">
@@ -109,7 +123,8 @@ const ProposalSection: React.FC<ProposalSectionProps> = ({ asset, proposals }) =
                     </button>
                   </td>
                 </tr>
-              ))}
+              );
+              })}
             </tbody>
           </table>
         </div>
