@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   ArrowLeft,
   ChevronRight,
-  Bell,
   Menu,
   FileText,
   Download,
@@ -17,10 +16,12 @@ import { PrivacyLevel } from '../types';
 import { estimateByUnitPrices } from '../utils';
 import useAssetStore from '../store/assetStore';
 import AssetSidebar from './features/assetDetail/AssetSidebar';
+import AssetOverview from './features/assetDetail/AssetOverview';
+import EvaluationTab from './features/assetDetail/EvaluationTab';
 import ProposalsTab from './features/assetDetail/ProposalsTab';
-import RegistryTab, { registryParcels } from './features/assetDetail/RegistryTab';
-import type { Attachment } from './features/assetDetail/RegistryTab';
-import NeighborMonitorTab from './features/assetDetail/NeighborMonitorTab';
+import RegistryTab from './features/assetDetail/RegistryTab';
+import { registryParcels } from '../data/mockRegistryData';
+import type { Attachment } from '../data/mockRegistryData';
 
 interface AssetDetailProps {
   assetId: number;
@@ -30,19 +31,11 @@ interface AssetDetailProps {
 
 const AssetDetail: React.FC<AssetDetailProps> = ({ assetId, onBack, privacyLevel }) => {
   const { getAssetById, getProposalsForAsset } = useAssetStore();
-  const [activeTab, setActiveTab] = useState('registry');
-  const [showNotification, setShowNotification] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const asset = getAssetById(assetId);
   const proposals = getProposalsForAsset(assetId);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowNotification(true);
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, []);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('ja-JP', {
@@ -58,9 +51,10 @@ const AssetDetail: React.FC<AssetDetailProps> = ({ assetId, onBack, privacyLevel
   };
 
   const tabs = [
-    { id: 'registry', label: '登記概要' },
+    { id: 'overview', label: '概要' },
+    { id: 'registry', label: '登記詳細' },
     { id: 'valuation', label: '評価' },
-    { id: 'neighbors', label: '隣接土地監視' },
+    { id: 'simulation', label: 'シミュレーション' },
     { id: 'documents', label: '図面・資料' },
     { id: 'history', label: '履歴' },
     { id: 'proposals', label: 'プロの提案' },
@@ -166,16 +160,20 @@ const AssetDetail: React.FC<AssetDetailProps> = ({ assetId, onBack, privacyLevel
 
           {/* Tab Content */}
           <div className="flex-1 p-6">
-            {activeTab === 'valuation' && (
-              <ValuationTab asset={asset} formatCurrency={formatCurrency} />
+            {activeTab === 'overview' && (
+              <AssetOverview asset={asset} privacyLevel={privacyLevel} />
             )}
 
             {activeTab === 'registry' && (
               <RegistryTab />
             )}
 
-            {activeTab === 'neighbors' && (
-              <NeighborMonitorTab assetId={assetId} />
+            {activeTab === 'valuation' && (
+              <ValuationTab asset={asset} formatCurrency={formatCurrency} />
+            )}
+
+            {activeTab === 'simulation' && (
+              <EvaluationTab asset={asset} />
             )}
 
             {activeTab === 'documents' && (
@@ -193,31 +191,6 @@ const AssetDetail: React.FC<AssetDetailProps> = ({ assetId, onBack, privacyLevel
         </div>
       </div>
 
-      {/* Notification */}
-      <AnimatePresence>
-        {!showNotification && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-4 right-4 bg-white rounded-lg shadow-lg border p-4 max-w-sm"
-          >
-            <div className="flex items-start space-x-3">
-              <Bell className="w-5 h-5 text-blue-500 mt-0.5" />
-              <div>
-                <div className="text-sm font-medium text-gray-900">隣地の登記情報が更新されました</div>
-                <div className="text-xs text-gray-600 mt-1">宇田川町83-4の所有者が変更されました</div>
-                <button
-                  onClick={() => setActiveTab('registry')}
-                  className="text-xs text-blue-600 hover:text-blue-700 mt-2"
-                >
-                  詳細を確認 →
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 };

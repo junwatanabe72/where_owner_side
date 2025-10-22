@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ChevronUp, ChevronDown, MapPin, Building2, Ruler, Train, Home } from 'lucide-react';
+import { ChevronUp, ChevronDown, MapPin, Building2, Ruler, Train, Home, Calculator } from 'lucide-react';
 import { PrivacyLevel } from '../../../types';
 import {
   formatCurrency,
@@ -14,6 +14,7 @@ interface AssetListViewProps {
   proposals?: any[];
   privacyLevel: PrivacyLevel;
   onAssetClick?: (assetId: number) => void;
+  onEvaluationClick?: (assetId: number) => void;
 }
 
 type SortField = 'name' | 'address' | 'zoning' | 'area' | 'nearestStation' | 'landCategory' | 'valuationMedian';
@@ -22,6 +23,7 @@ type SortOrder = 'asc' | 'desc';
 const AssetListView: React.FC<AssetListViewProps> = ({
   privacyLevel,
   onAssetClick,
+  onEvaluationClick,
 }) => {
   const { assets } = useAssetStore();
   const [sortField, setSortField] = useState<SortField>('name');
@@ -174,14 +176,18 @@ const AssetListView: React.FC<AssetListViewProps> = ({
                   <SortIcon field="valuationMedian" />
                 </button>
               </th>
+              <th className="text-center px-6 py-3">
+                <span className="text-xs font-medium text-slate-600">
+                  アクション
+                </span>
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
             {sortedAssets.map((asset) => (
               <tr
                 key={asset.id}
-                onClick={() => onAssetClick?.(asset.id)}
-                className="hover:bg-slate-50 cursor-pointer transition-colors"
+                className="hover:bg-slate-50 transition-colors"
               >
                 <td className="px-6 py-4">
                   <div className="font-medium text-slate-900">
@@ -240,6 +246,30 @@ const AssetListView: React.FC<AssetListViewProps> = ({
                 <td className="px-6 py-4 text-right">
                   <div className="text-sm font-semibold text-slate-900">
                     {formatValuationByPrivacy(asset.valuationMedian, privacyLevel)}
+                  </div>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAssetClick?.(asset.id);
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                    >
+                      <Building2 className="w-3.5 h-3.5" />
+                      詳細
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEvaluationClick?.(asset.id);
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-600 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
+                    >
+                      <Calculator className="w-3.5 h-3.5" />
+                      評価
+                    </button>
                   </div>
                 </td>
               </tr>

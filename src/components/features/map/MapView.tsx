@@ -1,6 +1,4 @@
 import React, { useState } from 'react';
-import { Layers } from 'lucide-react';
-import { AnimatePresence, motion } from 'framer-motion';
 import Map from '../../../map';
 import LayerToggle from '../../atoms/LayerToggle';
 import SearchInput from '../../common/SearchInput';
@@ -24,7 +22,6 @@ const MapView: React.FC<MapViewProps> = ({
 }) => {
   // 初期は衛星
   const [mapMode, setMapMode] = useState<MapMode>('sat');
-  const [showLayers, setShowLayers] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const [showBottomBar, setShowBottomBar] = useState(true);
 

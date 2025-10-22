@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useMemo } from "react";
+import React, { useRef, useEffect, useState, useMemo, useCallback } from "react";
 import mapboxgl from "mapbox-gl";
 import MapboxLanguage from "@mapbox/mapbox-gl-language";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -70,9 +70,7 @@ const Map: React.FC<Props> = ({
   const mapContainer = useRef(null);
   const [map, setMap] = useState<mapboxgl.Map>();
   const [pitch] = useState<number>(0);
-  // 初期は未適用として扱い、style.load 時に適用する
-  const [isSatellite, setIsSatellite] = useState<boolean>(false);
-  const [languageControl, setLanguageControl] = useState<MapboxLanguage | null>(null);
+  const languageControlRef = useRef<MapboxLanguage | null>(null);
   // 現在のベーススタイルURLを保持
   const currentBaseStyleRef = useRef<string | null>(null);
   
@@ -81,6 +79,7 @@ const Map: React.FC<Props> = ({
     return () => {
       if (map) {
         // 言語コントロールを削除
+        const languageControl = languageControlRef.current;
         if (languageControl) {
           try {
             map.removeControl(languageControl);
@@ -95,9 +94,10 @@ const Map: React.FC<Props> = ({
         } catch (e) {
           // エラーを無視
         }
+        languageControlRef.current = null;
       }
     };
-  }, []);
+  }, [map]);
   const targetGeo = useMemo<[number, number]>(() => {
     if (initialCenter) {
       return initialCenter;
@@ -143,7 +143,7 @@ const Map: React.FC<Props> = ({
     } catch (error) {
       console.error("Error creating map:", error);
     }
-  }, []); // 初回のみ実行
+  }, [map, mapMode, pitch, targetGeo]);
 
   useEffect(() => {
     if (!map || !onMapReady) {
@@ -189,7 +189,60 @@ const Map: React.FC<Props> = ({
     };
   }, [map, initialCenter]);
 
-  const applySatelliteForMode = async () => {
+  const applyLayerVisibility = useCallback(() => {
+    if (!map || !map.isStyleLoaded()) {
+      console.log('Map not ready for layer visibility');
+      return;
+    }
+
+    if (!mapLayers) {
+      console.log('No mapLayers provided');
+      return;
+    }
+
+    console.log('==== applyLayerVisibility called ====');
+    console.log('Applying layer visibility:', mapLayers);
+    console.log('Current mapMode:', mapMode);
+
+    const currentLayers = map.getStyle()?.layers || [];
+    console.log('Total layers in current style:', currentLayers.length);
+
+    Object.keys(customLayers).forEach((layerCategory) => {
+      const layerId = layerCategory as keyof typeof customLayers;
+      const layers = customLayers[layerId];
+      const layerValue = mapLayers[layerId as keyof MapLayers];
+      const shouldShow = mapMode === 'sat' && layerId === 'height' ? false : Boolean(layerValue);
+
+      console.log(`Category ${layerId}: value=${layerValue}, shouldShow=${shouldShow}`);
+
+      for (const city in layers) {
+        const mapLayerId = (layers as any)[city];
+        if (map.getLayer(mapLayerId)) {
+          const currentVisibility = map.getLayoutProperty(mapLayerId, "visibility");
+          const newVisibility = shouldShow ? "visible" : "none";
+
+          if (currentVisibility !== newVisibility) {
+            map.setLayoutProperty(mapLayerId, "visibility", newVisibility);
+            console.log(`✓ Changed ${mapLayerId} visibility to: ${newVisibility}`);
+          }
+
+          if (mapMode === 'map' && newVisibility === 'visible') {
+            const layer = map.getLayer(mapLayerId);
+            const source = layer && 'source' in layer ? layer.source : undefined;
+            const sourceData = source ? map.getSource(source as string) : undefined;
+
+            if (!sourceData) {
+              console.error(`⚠️ Source '${source}' not found for layer ${mapLayerId}!`);
+            }
+          }
+        } else {
+          console.log(`✗ Layer ${mapLayerId} not found in current style`);
+        }
+      }
+    });
+  }, [map, mapLayers, mapMode]);
+
+  const applySatelliteForMode = useCallback(async () => {
     if (!map) return;
     console.log('Switching map mode to:', mapMode);
     
@@ -228,12 +281,21 @@ const Map: React.FC<Props> = ({
       map.setPitch(pitch);
       map.setBearing(bearing);
       
+      if (mapMode !== "map" && languageControlRef.current) {
+        try {
+          map.removeControl(languageControlRef.current);
+        } catch (e) {
+          console.log('Failed to remove language control:', e);
+        }
+        languageControlRef.current = null;
+      }
+
       // 地図モードの場合、言語プラグインを追加
-      if (mapMode === "map" && !languageControl) {
+      if (mapMode === "map" && !languageControlRef.current) {
         try {
           const language = new MapboxLanguage({ defaultLanguage: "ja" });
           map.addControl(language);
-          setLanguageControl(language);
+          languageControlRef.current = language;
         } catch (e) {
           console.log('Failed to add language control:', e);
         }
@@ -361,16 +423,14 @@ const Map: React.FC<Props> = ({
       
       // 両モードで可視性を適用（カスタムスタイルに既にレイヤーが含まれている）
       // レイヤーが完全にロードされるまで少し待つ
-      setTimeout(() => {
+      window.setTimeout(() => {
         console.log('Applying layer visibility after style switch, mapLayers:', mapLayers);
         applyLayerVisibility();
       }, 200);
-      
-      setIsSatellite(mapMode === "sat");
     });
-    
+
     map.setStyle(newStyle);
-  };
+  }, [map, mapMode, mapLayers, applyLayerVisibility]);
 
   // カスタムスタイルからレイヤー情報を取得して追加（現在未使用）
   /*
@@ -566,106 +626,28 @@ const Map: React.FC<Props> = ({
   useEffect(() => {
     if (!map) return;
     applySatelliteForMode();
-  }, [map, mapMode]);
+  }, [map, applySatelliteForMode]);
 
 
   
-  const applyLayerVisibility = () => {
-    if (!map || !map.isStyleLoaded()) {
-      console.log('Map not ready for layer visibility');
-      return;
-    }
-    
-    if (!mapLayers) {
-      console.log('No mapLayers provided');
-      return;
-    }
-    
-    console.log('==== applyLayerVisibility called ====');
-    console.log('Applying layer visibility:', mapLayers);
-    console.log('Current mapMode:', mapMode);
-    
-    // 現在のスタイルのレイヤーをチェック
-    const currentLayers = map.getStyle()?.layers || [];
-    console.log('Total layers in current style:', currentLayers.length);
-    
-    Object.keys(customLayers).forEach((layerCategory) => {
-      const layerId = layerCategory as keyof typeof customLayers;
-      const layers = customLayers[layerId];
-      // 衛星表示中は建物(height)は常に非表示に固定
-      const layerValue = mapLayers[layerId as keyof MapLayers];
-      const shouldShow = mapMode === 'sat' && layerId === 'height' ? false : Boolean(layerValue);
-      
-      console.log(`Category ${layerId}: value=${layerValue}, shouldShow=${shouldShow}`);
-      
-      for (const city in layers) {
-        const mapLayerId = (layers as any)[city];
-        // レイヤーの存在確認
-        if (map.getLayer(mapLayerId)) {
-          const currentVisibility = map.getLayoutProperty(mapLayerId, "visibility");
-          const newVisibility = shouldShow ? "visible" : "none";
-          
-          // デバッグ: レイヤーの詳細情報を取得
-          const layer = map.getLayer(mapLayerId);
-          const source = layer && 'source' in layer ? layer.source : undefined;
-          const sourceData = source ? map.getSource(source as string) : undefined;
-          
-          console.log(`Layer ${mapLayerId}:`, {
-            current: currentVisibility,
-            new: newVisibility,
-            type: layer?.type,
-            source: source,
-            sourceExists: !!sourceData,
-            paint: layer && 'paint' in layer ? layer.paint : undefined
-          });
-          
-          if (currentVisibility !== newVisibility) {
-            map.setLayoutProperty(mapLayerId, "visibility", newVisibility);
-            console.log(`✓ Changed ${mapLayerId} visibility to: ${newVisibility}`);
-          }
-          
-          // 地図モードで可視性がvisibleなのに表示されない場合の追加チェック
-          if (mapMode === 'map' && newVisibility === 'visible') {
-            // ソースが存在するか確認
-            if (!sourceData) {
-              console.error(`⚠️ Source '${source}' not found for layer ${mapLayerId}!`);
-            }
-            
-            // レイヤーの順序を確認
-            const allLayers = map.getStyle()?.layers || [];
-            const layerIndex = allLayers.findIndex(l => l.id === mapLayerId);
-            console.log(`Layer ${mapLayerId} is at index ${layerIndex} of ${allLayers.length} layers`);
-            
-            // paintプロパティの確認
-            if (layer && 'paint' in layer && layer.paint) {
-              const paint = layer.paint as any;
-              if ('fill-opacity' in paint && paint['fill-opacity'] === 0) {
-                console.warn(`⚠️ Layer ${mapLayerId} has fill-opacity: 0`);
-              }
-            }
-          }
-        } else {
-          console.log(`✗ Layer ${mapLayerId} not found in current style`);
-        }
-      }
-    });
-  };
-
   // mapLayers が変わったら適用（即時適用のみ）
   useEffect(() => {
     if (!map) return;
     console.log('mapLayers changed:', mapLayers);
-    
-    // スタイルがロードされているか確認
+
     if (!map.isStyleLoaded()) {
       console.log('Waiting for style to load before applying layer visibility');
-      map.once('style.load', () => {
+      const handler = () => {
         applyLayerVisibility();
-      });
-    } else {
-      applyLayerVisibility();
+      };
+      map.once('style.load', handler);
+      return () => {
+        map.off('style.load', handler);
+      };
     }
-  }, [map, mapLayers, mapMode]);
+
+    applyLayerVisibility();
+  }, [map, mapLayers, applyLayerVisibility]);
   
   // 公開範囲に応じたレイヤー制御（互換性保持）
   useEffect(() => {
@@ -689,24 +671,28 @@ const Map: React.FC<Props> = ({
   }, [map, privacyLevel, mapLayers]);
 
   useEffect(() => {
-    if (!map || map === null) {
+    if (!map) {
       return;
     }
-    
-    // マップのサイズを強制的に更新
-    setTimeout(() => {
+
+    const resizeTimeout = window.setTimeout(() => {
       map.resize();
     }, 100);
-    
-    // 初期ロード時にもレイヤー可視性を適用
-    map.once('style.load', () => {
+
+    const handleInitialStyleLoad = () => {
       console.log('Initial style loaded, applying layer visibility');
-      setTimeout(() => {
+      window.setTimeout(() => {
         applyLayerVisibility();
       }, 300);
-    });
-    
-  }, [map]);
+    };
+
+    map.once('style.load', handleInitialStyleLoad);
+
+    return () => {
+      window.clearTimeout(resizeTimeout);
+      map.off('style.load', handleInitialStyleLoad);
+    };
+  }, [map, applyLayerVisibility]);
 
   return (
     <>

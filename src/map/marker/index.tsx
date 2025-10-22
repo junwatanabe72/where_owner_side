@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import * as turf from "@turf/turf";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -26,10 +26,10 @@ const layerOption = {
 };
 
 const PropertiesMarker: React.FC<Props> = ({ currentStore, map }) => {
-  const [markers, setMarkers] = useState<ClickableMarker[]>([]);
   const [isOpen, setDialog] = useState(false);
   const [targetProperty, setTargetProperty] = useState<LandProperty>();
   const [isMapReady, setIsMapReady] = useState(false);
+  const markersRef = useRef<ClickableMarker[]>([]);
 
   useEffect(() => {
     if (!map) {
@@ -99,12 +99,8 @@ const PropertiesMarker: React.FC<Props> = ({ currentStore, map }) => {
     return;
   };
 
-  const onClick = (
-    map: mapboxgl.Map,
-    property: LandProperty,
-    geo: number[],
-    idName: string
-  ) => {
+  const handleMarkerClick = useCallback((property: LandProperty, geo: number[], idName: string) => {
+    if (!map) return;
     const { nearStation } = property;
     const { min } = nearStation[0];
     console.log("click");
@@ -121,8 +117,7 @@ const PropertiesMarker: React.FC<Props> = ({ currentStore, map }) => {
       return;
     }
     toggleVisibilityOfExistingLayer(map, idName);
-    return;
-  };
+  }, [map]);
 
   const determineMarkerColor = (raito: number) => {
     if (raito >= 900) return "red";
@@ -134,14 +129,15 @@ const PropertiesMarker: React.FC<Props> = ({ currentStore, map }) => {
   };
 
   useEffect(() => {
-    if (!map || map === null || !isMapReady) {
+    if (!map || !isMapReady) {
       return;
     }
 
-    if (markers.length) {
-      markers.forEach((marker) => marker.remove());
-      setMarkers([]);
+    if (markersRef.current.length) {
+      markersRef.current.forEach((marker) => marker.remove());
+      markersRef.current = [];
     }
+
     const currentMarkers = currentStore.map((property, num) => {
       const {
         nearStation,
@@ -154,24 +150,29 @@ const PropertiesMarker: React.FC<Props> = ({ currentStore, map }) => {
       const idName = `${mapSourceIdName}${num}`;
       return new ClickableMarker({ color: determineMarkerColor(originalRaito) })
         .setLngLat(geo as mapboxgl.LngLatLike)
-        .onClick(() => onClick(map, property, geo, idName))
+        .onClick(() => handleMarkerClick(property, geo, idName))
         .addTo(map);
     });
-    setMarkers(currentMarkers);
-    map.on("mouseenter", "places", () => {
-      map.getCanvas().style.cursor = "pointer";
-    });
-    map.on("mouseleave", "places", () => {
-      map.getCanvas().style.cursor = "";
-    });
-  }, [currentStore, isMapReady, map]);
 
-  useEffect(() => {
-    return () => {
-      if (!markers.length) return;
-      markers.forEach((marker) => marker.remove());
+    markersRef.current = currentMarkers;
+
+    const handleMouseEnter = () => {
+      map.getCanvas().style.cursor = "pointer";
     };
-  }, [markers]);
+    const handleMouseLeave = () => {
+      map.getCanvas().style.cursor = "";
+    };
+
+    map.on("mouseenter", "places", handleMouseEnter);
+    map.on("mouseleave", "places", handleMouseLeave);
+
+    return () => {
+      markersRef.current.forEach((marker) => marker.remove());
+      markersRef.current = [];
+      map.off("mouseenter", "places", handleMouseEnter);
+      map.off("mouseleave", "places", handleMouseLeave);
+    };
+  }, [currentStore, isMapReady, map, handleMarkerClick]);
 
   return (
     <>

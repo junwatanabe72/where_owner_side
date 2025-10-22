@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { X, Map, List, Building2 } from 'lucide-react';
+import { X, Map, List, Building2, Calculator } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Asset, Proposal, PrivacyLevel } from '../../../types';
 import {
@@ -31,6 +31,7 @@ const AssetView: React.FC<AssetViewProps> = ({
   const [openDetail, setOpenDetail] = useState(false);
   const [viewMode, setViewMode] = useState<'map' | 'list'>('list');
   const [showAssetSidebar, setShowAssetSidebar] = useState(false);
+  const [initialTab, setInitialTab] = useState<'proposals' | 'evaluation'>('proposals');
 
   const { mapLayers, updateLayer, resetLayers } = useMapLayers(privacyLevel);
 
@@ -50,6 +51,13 @@ const AssetView: React.FC<AssetViewProps> = ({
   );
 
   const handleAssetClick = (assetId: number) => {
+    setInitialTab('proposals');
+    setOpenDetail(true);
+    onAssetClick(assetId);
+  };
+
+  const handleEvaluationClick = (assetId: number) => {
+    setInitialTab('evaluation');
     setOpenDetail(true);
     onAssetClick(assetId);
   };
@@ -140,11 +148,7 @@ const AssetView: React.FC<AssetViewProps> = ({
                           {assets.map((asset) => (
                             <div
                               key={asset.id}
-                              onClick={() => {
-                                handleAssetClick(asset.id);
-                                setShowAssetSidebar(false);
-                              }}
-                              className="px-6 py-4 border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors"
+                              className="px-6 py-4 border-b border-slate-100 hover:bg-slate-50 transition-colors"
                             >
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
@@ -161,6 +165,30 @@ const AssetView: React.FC<AssetViewProps> = ({
                                     <span className="text-slate-500">
                                       状態: {formatAssetStatus(asset.status)}
                                     </span>
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-3">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleAssetClick(asset.id);
+                                        setShowAssetSidebar(false);
+                                      }}
+                                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                                    >
+                                      <Building2 className="w-3.5 h-3.5" />
+                                      詳細
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleEvaluationClick(asset.id);
+                                        setShowAssetSidebar(false);
+                                      }}
+                                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-600 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
+                                    >
+                                      <Calculator className="w-3.5 h-3.5" />
+                                      評価シミュレーター
+                                    </button>
                                   </div>
                                 </div>
                                 <div className="text-right ml-4">
@@ -191,6 +219,7 @@ const AssetView: React.FC<AssetViewProps> = ({
               proposals={proposals}
               privacyLevel={privacyLevel}
               onAssetClick={handleAssetClick}
+              onEvaluationClick={handleEvaluationClick}
             />
           )}
         </div>
@@ -200,6 +229,7 @@ const AssetView: React.FC<AssetViewProps> = ({
           asset={selectedAsset}
           onClose={() => setOpenDetail(false)}
           proposals={proposals}
+          initialTab={initialTab}
         />
       </div>
     </div>

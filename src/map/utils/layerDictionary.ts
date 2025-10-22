@@ -274,89 +274,6 @@ const getLayerTitle = (layerId: string): string => {
   return layerId;
 };
 
-// 高度地区のプロパティをフォーマット
-const formatKoudoProperties = (properties: any): string => {
-  let result = "";
-  if (properties.TUP5F1 !== undefined) {
-    const koudoType = (koudoDictionary.TUP5F1.values as any)[properties.TUP5F1] || `タイプ${properties.TUP5F1}`;
-    result += `<div><strong>種別:</strong> ${koudoType}</div>`;
-  }
-  if (properties.TUP5F3 !== undefined && properties.TUP5F3 > 0) {
-    result += `<div><strong>最低限高度:</strong> ${properties.TUP5F3}m</div>`;
-  }
-  if (properties.TUP5F4 !== undefined && properties.TUP5F4 > 0) {
-    result += `<div><strong>最高限高度:</strong> ${properties.TUP5F4}m</div>`;
-  }
-  if (properties.AREA !== undefined) {
-    result += `<div><strong>面積:</strong> ${properties.AREA.toFixed(2)}㎡</div>`;
-  }
-  return result;
-};
-
-// 防火地域のプロパティをフォーマット
-const formatBoukaProperties = (properties: any): string => {
-  let result = "";
-  if (properties.TUP5M1 !== undefined) {
-    const boukaType = (boukaDictionary.TUP5M1.values as any)[properties.TUP5M1] || `タイプ${properties.TUP5M1}`;
-    result += `<div><strong>防火地域:</strong> ${boukaType}</div>`;
-  }
-  if (properties.TUP5M2 !== undefined) {
-    const type22 = (boukaDictionary.TUP5M2.values as any)[properties.TUP5M2] || `タイプ${properties.TUP5M2}`;
-    result += `<div><strong>22条地域:</strong> ${type22}</div>`;
-  }
-  if (properties.AREA !== undefined) {
-    result += `<div><strong>面積:</strong> ${properties.AREA.toFixed(2)}㎡</div>`;
-  }
-  return result;
-};
-
-// 用途地域のプロパティをフォーマット
-const formatYoutoProperties = (properties: any): string => {
-  let result = "";
-  if (properties.youto !== undefined) {
-    const youtoType = (youtoDictionary.youto.values as any)[properties.youto] || `タイプ${properties.youto}`;
-    result += `<div><strong>用途地域:</strong> ${youtoType}</div>`;
-  }
-  if (properties.A01_001 !== undefined) {
-    const youtoType = (youtoDictionary.youto.values as any)[properties.A01_001] || `タイプ${properties.A01_001}`;
-    result += `<div><strong>用途地域:</strong> ${youtoType}</div>`;
-  }
-  if (properties.yoseki !== undefined) {
-    result += `<div><strong>容積率:</strong> ${properties.yoseki}%</div>`;
-  }
-  if (properties.A01_004 !== undefined) {
-    result += `<div><strong>容積率:</strong> ${properties.A01_004}%</div>`;
-  }
-  if (properties.kenpei !== undefined) {
-    result += `<div><strong>建蔽率:</strong> ${properties.kenpei}%</div>`;
-  }
-  if (properties.A01_003 !== undefined) {
-    result += `<div><strong>建蔽率:</strong> ${properties.A01_003}%</div>`;
-  }
-  if (properties.AREA !== undefined) {
-    result += `<div><strong>面積:</strong> ${properties.AREA.toFixed(2)}㎡</div>`;
-  }
-  return result;
-};
-
-// 建物高度のプロパティをフォーマット
-const formatHeightProperties = (properties: any): string => {
-  let result = "";
-  if (properties.height !== undefined) {
-    result += `<div><strong>建物高さ:</strong> ${properties.height}m</div>`;
-  }
-  if (properties.floors !== undefined) {
-    result += `<div><strong>階数:</strong> ${properties.floors}階</div>`;
-  }
-  if (properties.type !== undefined) {
-    result += `<div><strong>建物種別:</strong> ${properties.type}</div>`;
-  }
-  if (properties.AREA !== undefined) {
-    result += `<div><strong>面積:</strong> ${properties.AREA.toFixed(2)}㎡</div>`;
-  }
-  return result;
-};
-
 // スタイル付きフォーマット関数
 const formatKoudoPropertiesStyled = (properties: any, rowStyle: string, labelStyle: string, valueStyle: string): string => {
   let result = "";
@@ -473,17 +390,6 @@ export const combineLayerProperties = (features: any[]): string => {
     line-height: 1.6;
     color: #333;
     max-width: 420px;
-  `;
-  
-  const headerStyle = `
-    margin: 0 0 12px 0;
-    padding: 10px 14px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    font-size: 16px;
-    font-weight: 600;
-    border-radius: 6px;
-    text-align: center;
   `;
   
   const sectionStyle = `
