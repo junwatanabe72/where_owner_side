@@ -189,7 +189,6 @@ const AssetView: React.FC<AssetViewProps> = ({
           ) : (
             <AssetListView
               proposals={proposals}
-              privacyLevel={privacyLevel}
               onAssetClick={handleAssetClick}
             />
           )}

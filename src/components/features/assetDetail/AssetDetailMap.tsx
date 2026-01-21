@@ -19,7 +19,7 @@ const AssetDetailMap: React.FC<AssetDetailMapProps> = ({
   mapLayers,
   setMapLayers,
 }) => {
-  const [mapMode, setMapMode] = useState<MapMode>('map');
+  const mapMode: MapMode = 'sat';
   const [showLayers, setShowLayers] = useState(false);
 
   const handleLayerToggle = (layer: keyof MapLayers, value: boolean) => {
@@ -34,31 +34,9 @@ const AssetDetailMap: React.FC<AssetDetailMapProps> = ({
         privacyLevel={privacyLevel}
         mapMode={mapMode}
         mapLayers={mapLayers}
+        enableCustomLayers
       />
       
-      <div className="absolute top-4 left-4 flex space-x-2">
-        <button
-          onClick={() => setMapMode('map')}
-          className={`px-3 py-2 backdrop-blur rounded-lg text-sm shadow-sm border ${
-            mapMode === 'map'
-              ? 'bg-blue-500 text-white border-blue-500'
-              : 'bg-white/95 hover:bg-gray-50'
-          }`}
-        >
-          地図
-        </button>
-        <button
-          onClick={() => setMapMode('sat')}
-          className={`px-3 py-2 backdrop-blur rounded-lg text-sm shadow-sm border ${
-            mapMode === 'sat'
-              ? 'bg-blue-500 text-white border-blue-500'
-              : 'bg-white/95 hover:bg-gray-50'
-          }`}
-        >
-          航空写真
-        </button>
-      </div>
-
       <div className="absolute bottom-4 right-4">
         <button
           onClick={() => setShowLayers(!showLayers)}

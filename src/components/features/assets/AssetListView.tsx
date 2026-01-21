@@ -4,15 +4,12 @@ import { PrivacyLevel } from '../../../types';
 import {
   formatCurrency,
   formatArea as formatAreaDetailed,
-  formatAreaByPrivacy,
-  formatValuationByPrivacy,
   calculateAssetTotals,
 } from '../../../utils';
 import useAssetStore from '../../../store/assetStore';
 
 interface AssetListViewProps {
   proposals?: any[];
-  privacyLevel: PrivacyLevel;
   onAssetClick?: (assetId: number) => void;
 }
 
@@ -20,12 +17,12 @@ type SortField = 'name' | 'address' | 'zoning' | 'area' | 'nearestStation' | 'la
 type SortOrder = 'asc' | 'desc';
 
 const AssetListView: React.FC<AssetListViewProps> = ({
-  privacyLevel,
   onAssetClick,
 }) => {
-  const { assets } = useAssetStore();
+  const { assets, setAssetPrivacyLevel } = useAssetStore();
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+  const privacyOptions: PrivacyLevel[] = ['最小公開', '限定公開', 'フル公開'];
 
   const sortedAssets = useMemo(() => {
     const sorted = [...assets].sort((a, b) => {
@@ -165,6 +162,11 @@ const AssetListView: React.FC<AssetListViewProps> = ({
                   <SortIcon field="landCategory" />
                 </button>
               </th>
+              <th className="text-left px-6 py-3">
+                <span className="text-xs font-medium text-slate-600">
+                  公開
+                </span>
+              </th>
               <th className="text-right px-6 py-3">
                 <button
                   className="flex items-center gap-1 ml-auto text-xs font-medium text-slate-600 hover:text-slate-900 transition-colors"
@@ -177,7 +179,10 @@ const AssetListView: React.FC<AssetListViewProps> = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
-            {sortedAssets.map((asset) => (
+            {sortedAssets.map((asset) => {
+              const assetPrivacyLevel = asset.privacyLevel ?? '限定公開';
+              const areaLabel = asset.area != null ? `${asset.area.toLocaleString('ja-JP')}㎡` : '-';
+              return (
               <tr
                 key={asset.id}
                 onClick={() => onAssetClick?.(asset.id)}
@@ -213,7 +218,7 @@ const AssetListView: React.FC<AssetListViewProps> = ({
                   <div className="flex items-center justify-end gap-2">
                     <Ruler className="w-4 h-4 text-slate-400" />
                     <span className="text-sm font-medium text-slate-900">
-                      {formatAreaByPrivacy(asset.area, privacyLevel)}
+                      {areaLabel}
                     </span>
                   </div>
                 </td>
@@ -237,13 +242,34 @@ const AssetListView: React.FC<AssetListViewProps> = ({
                     {asset.landCategory || '-'}
                   </span>
                 </td>
+                <td
+                  className="px-6 py-4"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <select
+                    value={assetPrivacyLevel}
+                    onChange={(event) => {
+                      event.stopPropagation();
+                      setAssetPrivacyLevel(asset.id, event.target.value as PrivacyLevel);
+                    }}
+                    className="text-sm border border-slate-200 rounded-md px-2 py-1 bg-white text-slate-700"
+                    aria-label="公開レベル"
+                  >
+                    {privacyOptions.map((level) => (
+                      <option key={level} value={level}>
+                        {level}
+                      </option>
+                    ))}
+                  </select>
+                </td>
                 <td className="px-6 py-4 text-right">
                   <div className="text-sm font-semibold text-slate-900">
-                    {formatValuationByPrivacy(asset.valuationMedian, privacyLevel)}
+                    {asset.valuationMedian != null ? formatCurrency(asset.valuationMedian) : '-'}
                   </div>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
 

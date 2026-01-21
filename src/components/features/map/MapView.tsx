@@ -1,6 +1,4 @@
 import React, { useState } from 'react';
-import { Layers } from 'lucide-react';
-import { AnimatePresence, motion } from 'framer-motion';
 import Map from '../../../map';
 import LayerToggle from '../../atoms/LayerToggle';
 import SearchInput from '../../common/SearchInput';
@@ -22,9 +20,7 @@ const MapView: React.FC<MapViewProps> = ({
   onLayerToggle,
   onResetLayers,
 }) => {
-  // 初期は衛星
-  const [mapMode, setMapMode] = useState<MapMode>('sat');
-  const [showLayers, setShowLayers] = useState(false);
+  const mapMode: MapMode = 'sat';
   const [searchValue, setSearchValue] = useState('');
   const [showBottomBar, setShowBottomBar] = useState(true);
 
@@ -50,24 +46,11 @@ const MapView: React.FC<MapViewProps> = ({
         privacyLevel={privacyLevel}
         mapMode={mapMode}
         mapLayers={mapLayers}
+        enableCustomLayers
       />
       
       <div className="absolute top-3 left-3 right-3 z-10">
         <div className="flex gap-2 items-center">
-          <div className="flex bg-white/95 rounded-lg shadow-sm border overflow-hidden">
-            <button
-              onClick={() => setMapMode('map')}
-              className={`px-3 py-2 text-sm ${mapMode === 'map' ? 'bg-blue-500 text-white' : 'hover:bg-gray-50'}`}
-            >
-              地図
-            </button>
-            <button
-              onClick={() => setMapMode('sat')}
-              className={`px-3 py-2 text-sm ${mapMode === 'sat' ? 'bg-blue-500 text-white' : 'hover:bg-gray-50'}`}
-            >
-              航空写真
-            </button>
-          </div>
           <div className="flex-1">
             <SearchInput
               placeholder="例: 東京都中央区…"

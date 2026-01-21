@@ -1,9 +1,15 @@
+import { PrivacyLevel } from './privacy';
+
 export interface Asset {
   /**
    * Indicates whether the asset is publicly visible.
    * true → 公開, false → 非公開. Optional; defaults to public when omitted.
    */
   isPublic?: boolean;
+  /**
+   * Per-asset sharing level for external visibility.
+   */
+  privacyLevel?: PrivacyLevel;
   id: number;
   address: string;
   lat: number;

@@ -20,7 +20,7 @@ import AssetSidebar from './features/assetDetail/AssetSidebar';
 import ProposalsTab from './features/assetDetail/ProposalsTab';
 import RegistryTab, { registryParcels } from './features/assetDetail/RegistryTab';
 import type { Attachment } from './features/assetDetail/RegistryTab';
-import NeighborMonitorTab from './features/assetDetail/NeighborMonitorTab';
+import SimulatorTab from './features/assetDetail/SimulatorTab';
 
 interface AssetDetailProps {
   assetId: number;
@@ -60,7 +60,7 @@ const AssetDetail: React.FC<AssetDetailProps> = ({ assetId, onBack, privacyLevel
   const tabs = [
     { id: 'registry', label: '登記概要' },
     { id: 'valuation', label: '評価' },
-    { id: 'neighbors', label: '隣接土地監視' },
+    { id: 'simulator', label: '評価シミュレーター' },
     { id: 'documents', label: '図面・資料' },
     { id: 'history', label: '履歴' },
     { id: 'proposals', label: 'プロの提案' },
@@ -170,12 +170,12 @@ const AssetDetail: React.FC<AssetDetailProps> = ({ assetId, onBack, privacyLevel
               <ValuationTab asset={asset} formatCurrency={formatCurrency} />
             )}
 
-            {activeTab === 'registry' && (
-              <RegistryTab />
+            {activeTab === 'simulator' && (
+              <SimulatorTab assetId={assetId} />
             )}
 
-            {activeTab === 'neighbors' && (
-              <NeighborMonitorTab assetId={assetId} />
+            {activeTab === 'registry' && (
+              <RegistryTab />
             )}
 
             {activeTab === 'documents' && (
@@ -224,64 +224,68 @@ const AssetDetail: React.FC<AssetDetailProps> = ({ assetId, onBack, privacyLevel
 
 // Simple placeholder components for other tabs
 const ValuationTab: React.FC<{ asset: any; formatCurrency: (value: number) => string }> = ({ asset, formatCurrency }) => {
-  // 5年分のダミー系列（基準値 ±8%レンジ）
   const currentYear = new Date().getFullYear();
-  const baseRosenka = asset?.referenceIndicators?.rosenka?.estimatedPricePerSqm ?? 300000; // 円/㎡
-  const baseKoji = asset?.referenceIndicators?.kojiKakaku?.pricePerSqm ?? 350000; // 円/㎡
-  const multipliers = [0.92, 0.96, 1.0, 1.04, 1.08];
-  const rosenkaSeries = multipliers.map((m, i) => ({ year: currentYear - (4 - i), psm: Math.round(baseRosenka * m) }));
-  const kojiSeries = multipliers.map((m, i) => ({ year: currentYear - (4 - i), psm: Math.round(baseKoji * m) }));
-
   const totalLandArea = useMemo(
     () => registryParcels.reduce((sum, parcel) => sum + parcel.areaSqm, 0),
     []
   );
   const evaluationArea = totalLandArea > 0 ? totalLandArea : asset.area;
+  const valuationMedian =
+    asset?.valuationMedian ??
+    (asset?.valuationMin != null && asset?.valuationMax != null
+      ? (asset.valuationMin + asset.valuationMax) / 2
+      : undefined);
+  const unitPriceAnchor =
+    valuationMedian && evaluationArea
+      ? valuationMedian / evaluationArea
+      : asset?.pricePerSqm;
+
+  // 5年分のダミー系列（基準値 ±8%レンジ）: 路線価のみを使用
+  const rawRosenka = asset?.referenceIndicators?.rosenka?.estimatedPricePerSqm ?? 300000; // 円/㎡
+  const multipliers = [0.92, 0.96, 1.0, 1.04, 1.08];
+  const defaultYearMultiplier = multipliers[multipliers.length - 1];
+  const scaleFactor =
+    unitPriceAnchor && rawRosenka
+      ? unitPriceAnchor / (rawRosenka * defaultYearMultiplier)
+      : 1;
+  const baseRosenka = Math.round(rawRosenka * scaleFactor);
+  const rosenkaSeries = multipliers.map((m, i) => ({
+    year: currentYear - (4 - i),
+    psm: Math.round(baseRosenka * m),
+  }));
 
   const [selectedRYear, setSelectedRYear] = useState<number>(rosenkaSeries[4].year);
-  const [selectedKYear, setSelectedKYear] = useState<number>(kojiSeries[4].year);
-
-  const selectedRosenkaPsm = useMemo(() => rosenkaSeries.find(r => r.year === selectedRYear)?.psm, [rosenkaSeries, selectedRYear]);
-  const selectedKojiPsm = useMemo(() => kojiSeries.find(k => k.year === selectedKYear)?.psm, [kojiSeries, selectedKYear]);
-
-  const [rosenkaToMarket, setRosenkaToMarket] = useState(1.15);
-  const [kojiToMarket, setKojiToMarket] = useState(0.95);
-  const [wR, setWR] = useState(0.5); // 0..1（公示は1-wR）
-  const [sens, setSens] = useState(0.1);
+  const selectedRosenkaPsm = useMemo(
+    () => rosenkaSeries.find(r => r.year === selectedRYear)?.psm,
+    [rosenkaSeries, selectedRYear]
+  );
 
   const result = useMemo(() => {
     return estimateByUnitPrices({
       areaSqm: evaluationArea,
       rosenkaPsm: selectedRosenkaPsm,
-      kojiPsm: selectedKojiPsm,
-      rosenkaToMarket,
-      kojiToMarket,
-      weights: { rosenka: wR, koji: 1 - wR },
-      sensitivity: sens,
+      rosenkaToMarket: 1,
+      weights: { rosenka: 1, koji: 0 },
+      sensitivity: 0,
     });
-  }, [evaluationArea, selectedRosenkaPsm, selectedKojiPsm, rosenkaToMarket, kojiToMarket, wR, sens]);
+  }, [evaluationArea, selectedRosenkaPsm]);
 
   return (
     <div className="space-y-6">
       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6">
-        <h3 className="text-lg font-medium mb-4">土地評価（単価ベース）</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-          <div>
-            <div className="text-sm text-gray-600">下限値</div>
-            <div className="text-xl font-bold">{formatCurrency(Math.round(result.min))}</div>
-          </div>
-          <div>
-            <div className="text-sm text-gray-600">中央値</div>
-            <div className="text-2xl font-bold text-blue-600">{formatCurrency(Math.round(result.median))}</div>
-          </div>
-          <div>
-            <div className="text-sm text-gray-600">上限値</div>
-            <div className="text-xl font-bold">{formatCurrency(Math.round(result.max))}</div>
+        <h3 className="text-lg font-medium mb-4">土地評価（路線価ベース）</h3>
+        <div className="text-center">
+          <div className="text-sm text-gray-600">評価額</div>
+          <div className="text-2xl font-bold text-blue-600">
+            {formatCurrency(Math.round(result.median))}
           </div>
         </div>
         <div className="mt-3 text-xs text-gray-600 flex flex-wrap gap-3">
-          {result.breakdown?.rosenka !== undefined && <span className="px-2 py-1 bg-white rounded border">路線価寄与: {formatCurrency(Math.round(result.breakdown.rosenka))}</span>}
-          {result.breakdown?.koji !== undefined && <span className="px-2 py-1 bg-white rounded border">公示価格寄与: {formatCurrency(Math.round(result.breakdown.koji))}</span>}
+          {selectedRosenkaPsm !== undefined && (
+            <span className="px-2 py-1 bg-white rounded border">
+              路線価単価: {selectedRosenkaPsm.toLocaleString()} 円/㎡
+            </span>
+          )}
           <span className="px-2 py-1 bg-white rounded border">面積: {evaluationArea.toLocaleString()}㎡</span>
         </div>
       </div>
@@ -292,58 +296,17 @@ const ValuationTab: React.FC<{ asset: any; formatCurrency: (value: number) => st
           <div className="space-y-3 text-sm">
             <div className="flex items-center justify-between gap-3">
               <label className="text-gray-600">路線価 年度</label>
-              <select value={selectedRYear} onChange={(e) => setSelectedRYear(Number(e.target.value))} className="px-2 py-1 border rounded w-40">
+              <select
+                value={selectedRYear}
+                onChange={(e) => setSelectedRYear(Number(e.target.value))}
+                className="px-2 py-1 border rounded w-40"
+              >
                 {rosenkaSeries.map(r => (
-                  <option key={r.year} value={r.year}>{r.year}年（{r.psm.toLocaleString()} 円/㎡）</option>
+                  <option key={r.year} value={r.year}>
+                    {r.year}年（{r.psm.toLocaleString()} 円/㎡）
+                  </option>
                 ))}
               </select>
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <label className="text-gray-600">公示価格 年度</label>
-              <select value={selectedKYear} onChange={(e) => setSelectedKYear(Number(e.target.value))} className="px-2 py-1 border rounded w-40">
-                {kojiSeries.map(k => (
-                  <option key={k.year} value={k.year}>{k.year}年（{k.psm.toLocaleString()} 円/㎡）</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-        <div className="bg-gray-50 rounded-lg p-4">
-          <h4 className="text-sm font-medium text-gray-700 mb-3">補正・重み・感度</h4>
-          <div className="space-y-4 text-sm">
-            <div>
-              <div className="flex items-center justify-between">
-                <label className="text-gray-600">路線価→市場 補正</label>
-                <span className="text-gray-800 font-medium">× {rosenkaToMarket.toFixed(2)}</span>
-              </div>
-              <input type="range" min={0.9} max={1.3} step={0.01} value={rosenkaToMarket} onChange={(e) => setRosenkaToMarket(Number(e.target.value))} className="w-full" />
-              <div className="flex justify-between text-xs text-gray-500"><span>0.90</span><span>1.10</span><span>1.30</span></div>
-            </div>
-            <div>
-              <div className="flex items-center justify-between">
-                <label className="text-gray-600">公示価格→市場 補正</label>
-                <span className="text-gray-800 font-medium">× {kojiToMarket.toFixed(2)}</span>
-              </div>
-              <input type="range" min={0.85} max={1.15} step={0.01} value={kojiToMarket} onChange={(e) => setKojiToMarket(Number(e.target.value))} className="w-full" />
-              <div className="flex justify-between text-xs text-gray-500"><span>0.85</span><span>1.00</span><span>1.15</span></div>
-            </div>
-            <div>
-              <div className="flex items-center justify-between">
-                <label className="text-gray-600">重み（路線価 ↔ 公示価格）</label>
-                <span className="text-gray-800 font-medium">{Math.round(wR*100)}% / {Math.round((1-wR)*100)}%</span>
-              </div>
-              <input type="range" min={0} max={1} step={0.05} value={wR} onChange={(e) => setWR(Number(e.target.value))} className="w-full" />
-              <div className="mt-1 h-2 rounded-full overflow-hidden bg-gray-200">
-                <div className="h-full bg-blue-500" style={{ width: `${wR*100}%` }} />
-              </div>
-            </div>
-            <div>
-              <div className="flex items-center justify-between">
-                <label className="text-gray-600">感度（±）</label>
-                <span className="text-gray-800 font-medium">{Math.round(sens*100)}%</span>
-              </div>
-              <input type="range" min={0} max={0.3} step={0.01} value={sens} onChange={(e) => setSens(Number(e.target.value))} className="w-full" />
-              <div className="flex justify-between text-xs text-gray-500"><span>0%</span><span>15%</span><span>30%</span></div>
             </div>
           </div>
         </div>

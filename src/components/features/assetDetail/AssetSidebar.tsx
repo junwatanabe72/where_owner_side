@@ -13,6 +13,8 @@ const AssetSidebar: React.FC<AssetSidebarProps> = ({
   formatCurrency, 
   formatNumber 
 }) => {
+  const valuation = asset.valuationMedian ?? asset.valuationMax ?? asset.valuationMin;
+
   return (
     <div className="space-y-6">
       <div>
@@ -21,15 +23,10 @@ const AssetSidebar: React.FC<AssetSidebarProps> = ({
       </div>
 
       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4">
-        <div className="text-xs text-gray-600 mb-1">評価額レンジ</div>
+        <div className="text-xs text-gray-600 mb-1">評価額</div>
         <div className="text-2xl font-bold text-gray-900">
-          {formatCurrency(asset.valuationMedian || 0)}
+          {valuation != null ? formatCurrency(valuation) : '-'}
         </div>
-        {asset.valuationMin && asset.valuationMax && (
-          <div className="text-sm text-gray-600 mt-1">
-            {formatCurrency(asset.valuationMin)} ~ {formatCurrency(asset.valuationMax)}
-          </div>
-        )}
         <div className="flex items-center mt-2 space-x-2">
           <div className="flex items-center">
             <Star className="w-4 h-4 text-yellow-500 fill-current" />

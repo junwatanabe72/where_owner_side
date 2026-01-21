@@ -1,6 +1,9 @@
 import { create } from "zustand";
+import type { PrivacyLevel } from "../types";
 import neighborParcelsByAsset from '../data/neighborParcels';
 import type { NeighborParcel } from '../types/neighbor';
+
+const EMPTY_NEIGHBOR_PARCELS: NeighborParcel[] = [];
 
 export interface Asset {
   id: number;
@@ -15,6 +18,8 @@ export interface Asset {
   zoning?: string;
   /** Visibility flag – mirrors the definition in src/types/asset.ts. */
   isPublic?: boolean;
+  /** Per-asset sharing level. */
+  privacyLevel?: PrivacyLevel;
   frontage?: number;
   depth?: number;
   roadAccess?: string;
@@ -133,6 +138,7 @@ interface AssetStore {
   neighborLoading: Record<number, boolean>;
   neighborError: Record<number, string | null>;
   setAssets: (assets: Asset[]) => void;
+  setAssetPrivacyLevel: (assetId: number, level: PrivacyLevel) => void;
   setProposals: (proposals: Proposal[]) => void;
   setRegistryAlerts: (alerts: RegistryAlert[]) => void;
   setSelectedAssetId: (id: number | null) => void;
@@ -2214,6 +2220,7 @@ const useAssetStore = create<AssetStore>((set, get) => ({
     {
       id: 1,
       name: "渋谷宇田川町物件",
+      privacyLevel: "限定公開",
       address: "東京都渋谷区宇田川町 31-2",
       memo: "用途地域: 商業地域 / 建蔽率80% / 容積率600%",
       area: 1198.22,
@@ -2256,6 +2263,7 @@ const useAssetStore = create<AssetStore>((set, get) => ({
     {
       id: 2,
       name: "太子堂複合施設",
+      privacyLevel: "限定公開",
       address: "東京都世田谷区太子堂 4丁目1-1",
       memo: "用途地域: 商業地域 / 建蔽率80% / 容積率400%",
       area: 1198.22,
@@ -2297,6 +2305,7 @@ const useAssetStore = create<AssetStore>((set, get) => ({
     {
       id: 3,
       name: "丸の内オフィスビル",
+      privacyLevel: "限定公開",
       address: "東京都千代田区丸の内 1丁目1-1",
       memo: "用途地域: 商業地域 / 建蔽率80% / 容積率1300%",
       area: 680.0,
@@ -2366,6 +2375,12 @@ const useAssetStore = create<AssetStore>((set, get) => ({
   neighborLoading: {},
   neighborError: {},
   setAssets: (assets) => set({ assets }),
+  setAssetPrivacyLevel: (assetId, level) =>
+    set((state) => ({
+      assets: state.assets.map((asset) =>
+        asset.id === assetId ? { ...asset, privacyLevel: level } : asset
+      ),
+    })),
   setProposals: (proposals) => set({ proposals }),
   setRegistryAlerts: (alerts) => set({ registryAlerts: alerts }),
   setSelectedAssetId: (id) => set({ selectedAssetId: id }),
@@ -2389,7 +2404,7 @@ const useAssetStore = create<AssetStore>((set, get) => ({
   },
 
   getNeighborParcels: (assetId) => {
-    return get().neighborParcels[assetId] ?? [];
+    return get().neighborParcels[assetId] ?? EMPTY_NEIGHBOR_PARCELS;
   },
 
   getNeighborLoading: (assetId) => {

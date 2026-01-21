@@ -101,13 +101,16 @@ const NeighborMonitorTab: React.FC<NeighborMonitorTabProps> = ({ assetId }) => {
     return [...parcels].sort((a, b) => a.label.localeCompare(b.label, 'ja'));
   }, [parcels]);
 
-  const [selectedParcelId, setSelectedParcelId] = useState<string | null>(() => sortedParcels[0]?.id ?? null);
+  const [selectedParcelId, setSelectedParcelId] = useState<string | null>(null);
   const [hoveredParcelId, setHoveredParcelId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<SimpleNeighborViewMode>('list');
 
-  useEffect(() => {
-    setSelectedParcelId(sortedParcels[0]?.id ?? null);
-  }, [sortedParcels]);
+  const effectiveSelectedParcelId = useMemo(() => {
+    if (selectedParcelId && sortedParcels.some((parcel) => parcel.id === selectedParcelId)) {
+      return selectedParcelId;
+    }
+    return sortedParcels[0]?.id ?? null;
+  }, [selectedParcelId, sortedParcels]);
 
   const handleSelect = useCallback((parcelId: string) => {
     setSelectedParcelId(parcelId);
@@ -120,7 +123,7 @@ const NeighborMonitorTab: React.FC<NeighborMonitorTabProps> = ({ assetId }) => {
   const renderListView = () => (
     <NeighborParcelTable
       parcels={sortedParcels}
-      selectedParcelId={selectedParcelId}
+      selectedParcelId={effectiveSelectedParcelId}
       hoveredParcelId={hoveredParcelId}
       onSelect={handleSelect}
       onHover={handleHover}
@@ -143,7 +146,7 @@ const NeighborMonitorTab: React.FC<NeighborMonitorTabProps> = ({ assetId }) => {
       <div className="px-5 pb-5">
         <NeighborParcelMap
           parcels={sortedParcels}
-          selectedParcelId={selectedParcelId}
+          selectedParcelId={effectiveSelectedParcelId}
           hoveredParcelId={hoveredParcelId}
           onSelect={handleSelect}
           onHover={handleHover}

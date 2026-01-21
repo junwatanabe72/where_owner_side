@@ -20,10 +20,16 @@ const mockAsset: Asset = {
   valuationMedian: 400000000,
 };
 
-beforeEach(() => {
+const setAssetsWithPrivacy = (privacyLevel: Asset['privacyLevel']) => {
   act(() => {
-    useAssetStore.setState({ assets: [mockAsset] });
+    useAssetStore.setState({
+      assets: [{ ...mockAsset, privacyLevel }],
+    });
   });
+};
+
+beforeEach(() => {
+  setAssetsWithPrivacy('最小公開');
 });
 
 afterEach(() => {
@@ -32,19 +38,22 @@ afterEach(() => {
   });
 });
 
-describe('AssetListView privacy masking', () => {
-  it('masks valuation at 最小公開', () => {
-    render(<AssetListView privacyLevel="最小公開" />);
-    expect(screen.getAllByText('***')[0]).toBeInTheDocument();
+describe('AssetListView valuation display (per asset)', () => {
+  it('keeps full valuation at 最小公開', () => {
+    setAssetsWithPrivacy('最小公開');
+    render(<AssetListView />);
+    expect(screen.getByText('¥ 4.00億')).toBeInTheDocument();
   });
 
-  it('shows rounded valuation label at 限定公開', () => {
-    render(<AssetListView privacyLevel="限定公開" />);
-    expect(screen.getByText('約40千万円')).toBeInTheDocument();
+  it('keeps full valuation at 限定公開', () => {
+    setAssetsWithPrivacy('限定公開');
+    render(<AssetListView />);
+    expect(screen.getByText('¥ 4.00億')).toBeInTheDocument();
   });
 
-  it('reveals full valuation at フル公開', () => {
-    render(<AssetListView privacyLevel="フル公開" />);
+  it('keeps full valuation at フル公開', () => {
+    setAssetsWithPrivacy('フル公開');
+    render(<AssetListView />);
     expect(screen.getByText('¥ 4.00億')).toBeInTheDocument();
   });
 });
